@@ -8,7 +8,49 @@
     "enabled": true,
     "head_sampling_rate": 1,
   },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "crow-core-auth-service-db",
+      "database_id": "ac9b828a-330b-463f-9de3-d394eed37c35"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "R2_BUCKET",
+      "bucket_name": "crow-core-auth-service-store"
+    }
+  ],
   "env": {
-    "dev": {},
+    "dev": {
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "crow-core-auth-service-db-dev",
+          "database_id": "99c90045-cfbb-4da8-9a82-f3372a37dda3"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "R2_BUCKET",
+          "bucket_name": "crow-core-auth-service-store-dev"
+        }
+      ]
+    },
+    "local": {
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "crow-core-auth-service-db-local",
+          "database_id": "355b47e5-8f20-4e0a-b801-0be9beba488e"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "R2_BUCKET",
+          "bucket_name": "crow-core-auth-service-store-local"
+        }
+      ]
+    },
   },
 }
