@@ -12,18 +12,23 @@
     "format": "bun run prettier src/ --write",
     "bun:dev": "bun run --watch src/index.ts",
     "bun:start": "bun run src/index.ts",
-    "bun:build": "bun build src/index.ts --compile --outfile server"
+    "bun:build": "bun build src/index.ts --compile --outfile server",
+    "auth:generate": "bunx @better-auth/cli generate"
   },
   "dependencies": {
     "@antfu/eslint-config": "^6.7.1",
     "@hono/swagger-ui": "^0.5.2",
     "@hono/zod-openapi": "^1.1.5",
+    "@types/node": "^25.0.3",
+    "better-auth": "^1.4.9",
+    "drizzle-orm": "^0.45.1",
     "hono": "^4.11.1",
     "jiti": "^2.6.1",
     "zod": "^4.2.1"
   },
   "devDependencies": {
     "@commitlint/config-conventional": "^20.2.0",
+    "drizzle-kit": "^0.31.8",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
     "prettier": "^3.7.4",
