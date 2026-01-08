@@ -3,60 +3,76 @@
   "name": "crow-core-auth-service",
   "account_id": "8f0203259905d8923687286c84921e6c",
   "main": "src/index.ts",
+  "compatibility_flags": ["nodejs_compat", "nodejs_als"],
   "compatibility_date": "2025-12-17",
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1,
   },
+  "vars": {
+    "ENVIRONMENT": "prod",
+    "BETTER_AUTH_URL": "https://internal.auth-api.crowai.dev",
+  },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "crow-core-auth-service-db",
-      "database_id": "ac9b828a-330b-463f-9de3-d394eed37c35"
-    }
+      "database_id": "ac9b828a-330b-463f-9de3-d394eed37c35",
+    },
   ],
   "r2_buckets": [
     {
       "binding": "R2_BUCKET",
-      "bucket_name": "crow-core-auth-service-store"
-    }
+      "bucket_name": "crow-core-auth-service-store",
+    },
   ],
   "routes": [
-    { "pattern": "internal.auth-api.crowai.dev", "custom_domain": true }
+    { "pattern": "internal.auth-api.crowai.dev", "custom_domain": true },
   ],
   "env": {
     "dev": {
+      "vars": {
+        "ENVIRONMENT": "dev",
+        "BETTER_AUTH_URL": "https://dev.internal.auth-api.crowai.dev",
+      },
       "routes": [
-        { "pattern": "dev.internal.auth-api.crowai.dev", "custom_domain": true }
+        {
+          "pattern": "dev.internal.auth-api.crowai.dev",
+          "custom_domain": true,
+        },
       ],
       "d1_databases": [
         {
           "binding": "DB",
           "database_name": "crow-core-auth-service-db-dev",
-          "database_id": "99c90045-cfbb-4da8-9a82-f3372a37dda3"
-        }
+          "database_id": "99c90045-cfbb-4da8-9a82-f3372a37dda3",
+        },
       ],
       "r2_buckets": [
         {
           "binding": "R2_BUCKET",
-          "bucket_name": "crow-core-auth-service-store-dev"
-        }
-      ]
+          "bucket_name": "crow-core-auth-service-store-dev",
+        },
+      ],
     },
     "local": {
+      "vars": {
+        "ENVIRONMENT": "local",
+        "BETTER_AUTH_URL": "http://localhost:8001",
+      },
       "d1_databases": [
         {
           "binding": "DB",
           "database_name": "crow-core-auth-service-db-local",
-          "database_id": "355b47e5-8f20-4e0a-b801-0be9beba488e"
-        }
+          "database_id": "355b47e5-8f20-4e0a-b801-0be9beba488e",
+        },
       ],
       "r2_buckets": [
         {
           "binding": "R2_BUCKET",
-          "bucket_name": "crow-core-auth-service-store-local"
-        }
-      ]
+          "bucket_name": "crow-core-auth-service-store-local",
+        },
+      ],
     },
   },
 }
