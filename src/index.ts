@@ -2,23 +2,8 @@ import type { Environment } from './types';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
+import { LOCAL_ORIGINS, PROD_ORIGINS } from './constants';
 import { createAuth } from './lib/auth';
-
-const PROD_ORIGINS = [
-  'https://crowai.dev',
-  'https://app.crowai.dev',
-  'https://api.crowai.dev',
-  'https://dev.crowai.dev',
-  'https://dev.app.crowai.dev',
-  'https://dev.api.crowai.dev',
-];
-
-const LOCAL_ORIGINS = [
-  'http://localhost:3000',
-  'http://localhost:3001',
-  'http://localhost:3002',
-  'http://localhost:8000',
-];
 
 function getAllowedOrigins(env: Environment): string[] {
   if (env.ENVIRONMENT === 'local') {
