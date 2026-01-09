@@ -17,7 +17,7 @@ const app = new Hono<{ Bindings: Environment }>();
 
 app.use(logger());
 
-app.use('/api/auth/*', async (c, next) => {
+app.use('/api/v1/auth/*', async (c, next) => {
   const corsMiddleware = cors({
     origin: getAllowedOrigins(c.env),
     credentials: true,
@@ -25,7 +25,7 @@ app.use('/api/auth/*', async (c, next) => {
   return corsMiddleware(c, next);
 });
 
-app.on(['GET', 'POST'], '/api/auth/*', c =>
+app.on(['GET', 'POST'], '/api/v1/auth/*', c =>
   createAuth(c.env).handler(c.req.raw)
 );
 
