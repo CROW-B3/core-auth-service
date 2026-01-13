@@ -15,13 +15,28 @@ export const createAuth = (env: Environment) => {
     basePath: '/api/v1/auth',
     secret: env.BETTER_AUTH_SECRET,
 
+    emailAndPassword: {
+      enabled: true,
+    },
+
+    socialProviders: {
+      google: {
+        clientId: env.GOOGLE_CLIENT_ID,
+        clientSecret: env.GOOGLE_CLIENT_SECRET,
+      },
+    },
+
     trustedOrigins: [
       'https://crowai.dev',
+      'https://auth.crowai.dev',
       'https://app.crowai.dev',
+      'https://dashboard.crowai.dev',
       'https://api.crowai.dev',
       'https://internal.auth-api.crowai.dev',
       'https://dev.crowai.dev',
+      'https://dev.auth.crowai.dev',
       'https://dev.app.crowai.dev',
+      'https://dev.dashboard.crowai.dev',
       'https://dev.api.crowai.dev',
       'https://dev.internal.auth-api.crowai.dev',
       'http://localhost:3000',
@@ -32,10 +47,10 @@ export const createAuth = (env: Environment) => {
     ],
 
     advanced: {
-      crossSubDomainCookies: {
-        enabled: true,
-        domain: '.crowai.dev',
-      },
+      crossSubDomainCookies:
+        env.ENVIRONMENT === 'local'
+          ? { enabled: false }
+          : { enabled: true, domain: '.crowai.dev' },
     },
 
     plugins: [
