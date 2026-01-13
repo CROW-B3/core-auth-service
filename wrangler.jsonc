@@ -11,7 +11,7 @@
   },
   "vars": {
     "ENVIRONMENT": "prod",
-    "BETTER_AUTH_URL": "https://internal.auth-api.crowai.dev",
+    "BETTER_AUTH_URL": "https://api.crowai.dev",
   },
   "d1_databases": [
     {
@@ -28,7 +28,7 @@
     "dev": {
       "vars": {
         "ENVIRONMENT": "dev",
-        "BETTER_AUTH_URL": "https://dev.internal.auth-api.crowai.dev",
+        "BETTER_AUTH_URL": "https://dev.api.crowai.dev",
       },
       "routes": [
         {
@@ -48,7 +48,7 @@
     "local": {
       "vars": {
         "ENVIRONMENT": "local",
-        "BETTER_AUTH_URL": "http://localhost:8001",
+        "BETTER_AUTH_URL": "http://localhost:8000",
       },
       "d1_databases": [
         {
