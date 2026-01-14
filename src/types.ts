@@ -14,4 +14,6 @@ export interface Environment {
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
   PRODUCT_SERVICE_URL: string;
+  AUTH_CLIENT_URL: string;
+  NOTIFICATION_SERVICE_URL: string;
 }

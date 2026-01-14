@@ -5,23 +5,8 @@ import { anonymous, apiKey, jwt, organization } from 'better-auth/plugins';
 import { drizzle } from 'drizzle-orm/d1';
 import * as schema from '../db/schema';
 
-const getAuthClientBaseUrl = (env: Environment): string => {
-  if (env.ENVIRONMENT === 'local') return 'http://localhost:3000';
-  if (env.ENVIRONMENT === 'dev') return 'https://dev.auth.crowai.dev';
-  return 'https://auth.crowai.dev';
-};
-
-const getNotificationServiceUrl = (env: Environment): string => {
-  if (env.ENVIRONMENT === 'local') return 'http://localhost:8006';
-  if (env.ENVIRONMENT === 'dev')
-    return 'https://dev.internal.notifications.crowai.dev';
-  return 'https://internal.notifications.crowai.dev';
-};
-
 export const createAuth = (env: Environment) => {
   const db = drizzle(env.DB, { schema });
-  const authClientBaseUrl = getAuthClientBaseUrl(env);
-  const notificationServiceUrl = getNotificationServiceUrl(env);
 
   return betterAuth({
     database: drizzleAdapter(db, { provider: 'sqlite', schema }),
@@ -81,21 +66,24 @@ export const createAuth = (env: Environment) => {
         allowUserToCreateOrganization: true,
         creatorRole: 'owner',
         sendInvitationEmail: async data => {
-          const inviteLink = `${authClientBaseUrl}/accept-invite/${data.id}`;
-          await fetch(`${notificationServiceUrl}/api/v1/notifications/email`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              to: data.email,
-              template: 'organization-invite',
-              data: {
-                inviteLink,
-                organizationName: data.organization.name,
-                inviterName: data.inviter.name,
-                role: data.role,
-              },
-            }),
-          });
+          const inviteLink = `${env.AUTH_CLIENT_URL}/accept-invite/${data.id}`;
+          await fetch(
+            `${env.NOTIFICATION_SERVICE_URL}/api/v1/notifications/email`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: data.email,
+                template: 'organization-invite',
+                data: {
+                  inviteLink,
+                  organizationName: data.organization.name,
+                  inviterName: data.inviter.name,
+                  role: data.role,
+                },
+              }),
+            }
+          );
         },
       }),
       apiKey({
