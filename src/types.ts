@@ -1,8 +1,7 @@
-import { z } from '@hono/zod-openapi';
-export interface Environment {}
-
-export const HelloWorldSchema = z
-  .object({
-    text: z.string(),
-  })
-  .openapi('User');
+export interface Environment {
+  DB: D1Database;
+  R2_BUCKET: R2Bucket;
+  ENVIRONMENT: 'local' | 'dev' | 'prod';
+  BETTER_AUTH_URL: string;
+  BETTER_AUTH_SECRET: string;
+}
