@@ -13,6 +13,8 @@
     "ENVIRONMENT": "prod",
     "BETTER_AUTH_URL": "https://api.crowai.dev",
     "PRODUCT_SERVICE_URL": "https://internal.products.crowai.dev",
+    "AUTH_CLIENT_URL": "https://auth.crowai.dev",
+    "NOTIFICATION_SERVICE_URL": "https://internal.notifications.crowai.dev",
   },
   "d1_databases": [
     {
@@ -39,6 +41,8 @@
         "ENVIRONMENT": "dev",
         "BETTER_AUTH_URL": "https://dev.api.crowai.dev",
         "PRODUCT_SERVICE_URL": "https://dev.internal.products.crowai.dev",
+        "AUTH_CLIENT_URL": "https://dev.auth.crowai.dev",
+        "NOTIFICATION_SERVICE_URL": "https://dev.internal.notifications.crowai.dev",
       },
       "routes": [
         {
@@ -68,6 +72,8 @@
         "ENVIRONMENT": "local",
         "BETTER_AUTH_URL": "http://localhost:8000",
         "PRODUCT_SERVICE_URL": "http://localhost:8003",
+        "AUTH_CLIENT_URL": "http://localhost:3001",
+        "NOTIFICATION_SERVICE_URL": "http://localhost:8006",
       },
       "d1_databases": [
         {
