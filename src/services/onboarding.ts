@@ -37,6 +37,72 @@ const getServiceUrls = (env: Environment): ServiceUrls => {
   };
 };
 
+const createOrgBuilder = async (
+  serviceUrl: string,
+  betterAuthOrgId: string,
+  organizationName: string
+) => {
+  const response = await fetch(`${serviceUrl}/api/v1/org-builders`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ betterAuthOrgId, name: organizationName }),
+  });
+  if (!response.ok) throw new Error('Failed to create org builder');
+  return response.json();
+};
+
+const createUserBuilder = async (
+  serviceUrl: string,
+  betterAuthUserId: string,
+  organizationId: string
+) => {
+  const defaultOwnerPermissions = {
+    chat: {
+      enabled: true,
+      components: ['web', 'cctv', 'social'],
+      lookbackWindow: 'all',
+    },
+    interactions: true,
+    patterns: true,
+    teamManagement: true,
+    apiKeyManagement: true,
+  };
+
+  const response = await fetch(`${serviceUrl}/api/v1/user-builders`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      betterAuthUserId,
+      organizationId,
+      permissions: defaultOwnerPermissions,
+    }),
+  });
+  if (!response.ok) throw new Error('Failed to create user builder');
+  return response.json();
+};
+
+const createBillingBuilder = async (
+  serviceUrl: string,
+  organizationId: string
+) => {
+  const response = await fetch(`${serviceUrl}/api/v1/billing-builders`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ organizationId }),
+  });
+  if (!response.ok) throw new Error('Failed to create billing builder');
+  return response.json();
+};
+
+const appendToCompletedSteps = (
+  existingSteps: string | null,
+  newStep: string
+): string[] => {
+  const steps = JSON.parse(existingSteps || '[]') as string[];
+  if (!steps.includes(newStep)) steps.push(newStep);
+  return steps;
+};
+
 export interface StartOnboardingResult {
   onboarding: typeof schema.onboarding.$inferSelect;
   redirect?: string;
@@ -89,61 +155,22 @@ export const processOrganizationStep = async (
 ) => {
   const serviceUrls = getServiceUrls(env);
 
-  const orgBuilderResponse = await fetch(
-    `${serviceUrls.orgService}/api/v1/org-builders`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        betterAuthOrgId,
-        name: input.organizationName,
-      }),
-    }
+  const orgBuilder = await createOrgBuilder(
+    serviceUrls.orgService,
+    betterAuthOrgId,
+    input.organizationName
   );
 
-  if (!orgBuilderResponse.ok) throw new Error('Failed to create org builder');
-  const orgBuilder = await orgBuilderResponse.json();
-
-  const userBuilderResponse = await fetch(
-    `${serviceUrls.userService}/api/v1/user-builders`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        betterAuthUserId,
-        organizationId: orgBuilder.id,
-        permissions: {
-          chat: {
-            enabled: true,
-            components: ['web', 'cctv', 'social'],
-            lookbackWindow: 'all',
-          },
-          interactions: true,
-          patterns: true,
-          teamManagement: true,
-          apiKeyManagement: true,
-        },
-      }),
-    }
+  const userBuilder = await createUserBuilder(
+    serviceUrls.userService,
+    betterAuthUserId,
+    orgBuilder.id
   );
 
-  if (!userBuilderResponse.ok) throw new Error('Failed to create user builder');
-  const userBuilder = await userBuilderResponse.json();
-
-  const billingBuilderResponse = await fetch(
-    `${serviceUrls.billingService}/api/v1/billing-builders`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        organizationId: orgBuilder.id,
-      }),
-    }
+  const billingBuilder = await createBillingBuilder(
+    serviceUrls.billingService,
+    orgBuilder.id
   );
-
-  if (!billingBuilderResponse.ok)
-    throw new Error('Failed to create billing builder');
-  const billingBuilder = await billingBuilderResponse.json();
 
   return onboardingRepo.updateOnboardingRecord(db, onboardingId, {
     betterAuthOrgId,
@@ -185,14 +212,9 @@ export const processPlanStep = async (
     }
   );
 
-  const completedSteps = JSON.parse(
-    onboarding.completedSteps || '[]'
-  ) as string[];
-  if (!completedSteps.includes('plan')) completedSteps.push('plan');
-
   return onboardingRepo.updateOnboardingRecord(db, onboardingId, {
     currentStep: 3,
-    completedSteps,
+    completedSteps: appendToCompletedSteps(onboarding.completedSteps, 'plan'),
   });
 };
 
@@ -200,6 +222,26 @@ export interface ProductsStepInput {
   sourceType: 'csv' | 'json' | 'url';
   sourceValue: string;
 }
+
+const createCrawlerJob = async (
+  serviceUrl: string,
+  organizationId: string,
+  onboardingId: string,
+  input: ProductsStepInput
+): Promise<{ id: string }> => {
+  const response = await fetch(`${serviceUrl}/api/v1/crawler-jobs`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      organizationId,
+      onboardingId,
+      sourceType: input.sourceType,
+      sourceValue: input.sourceValue,
+    }),
+  });
+  if (!response.ok) throw new Error('Failed to create crawler job');
+  return response.json();
+};
 
 export const processProductsStep = async (
   db: Database,
@@ -212,22 +254,12 @@ export const processProductsStep = async (
 
   const serviceUrls = getServiceUrls(env);
 
-  const jobResponse = await fetch(
-    `${serviceUrls.productService}/api/v1/crawler-jobs`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        organizationId: onboarding.orgBuilderId,
-        onboardingId,
-        sourceType: input.sourceType,
-        sourceValue: input.sourceValue,
-      }),
-    }
+  const job = await createCrawlerJob(
+    serviceUrls.productService,
+    onboarding.orgBuilderId!,
+    onboardingId,
+    input
   );
-
-  if (!jobResponse.ok) throw new Error('Failed to create crawler job');
-  const job = (await jobResponse.json()) as { id: string };
 
   await env.PRODUCT_CRAWL_QUEUE.send({
     jobId: job.id,
@@ -235,14 +267,12 @@ export const processProductsStep = async (
     url: input.sourceValue,
   });
 
-  const completedSteps = JSON.parse(
-    onboarding.completedSteps || '[]'
-  ) as string[];
-  if (!completedSteps.includes('products')) completedSteps.push('products');
-
   return onboardingRepo.updateOnboardingRecord(db, onboardingId, {
     currentStep: 4,
-    completedSteps,
+    completedSteps: appendToCompletedSteps(
+      onboarding.completedSteps,
+      'products'
+    ),
     productSource: {
       type: input.sourceType,
       value: input.sourceValue,
@@ -271,14 +301,12 @@ export const processSourceStep = async (
   >;
   sources[input.sourceType] = { apiKeyId: input.apiKeyId, connected: true };
 
-  const completedSteps = JSON.parse(
-    onboarding.completedSteps || '[]'
-  ) as string[];
-  if (!completedSteps.includes('sources')) completedSteps.push('sources');
-
   return onboardingRepo.updateOnboardingRecord(db, onboardingId, {
     currentStep: 5,
-    completedSteps,
+    completedSteps: appendToCompletedSteps(
+      onboarding.completedSteps,
+      'sources'
+    ),
     sources: sources as typeof onboarding.sources,
   });
 };
@@ -287,14 +315,9 @@ export const processTeamStep = async (db: Database, onboardingId: string) => {
   const onboarding = await onboardingRepo.findOnboardingById(db, onboardingId);
   if (!onboarding) throw new Error('Onboarding not found');
 
-  const completedSteps = JSON.parse(
-    onboarding.completedSteps || '[]'
-  ) as string[];
-  if (!completedSteps.includes('team')) completedSteps.push('team');
-
   return onboardingRepo.updateOnboardingRecord(db, onboardingId, {
     currentStep: 6,
-    completedSteps,
+    completedSteps: appendToCompletedSteps(onboarding.completedSteps, 'team'),
   });
 };
 
