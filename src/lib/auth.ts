@@ -3,6 +3,7 @@ import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { anonymous, apiKey, jwt, organization } from 'better-auth/plugins';
 import { drizzle } from 'drizzle-orm/d1';
+import { sendOrganizationInviteEmail } from '../clients/notification';
 import * as schema from '../db/schema';
 
 export const createAuth = (env: Environment) => {
@@ -66,24 +67,13 @@ export const createAuth = (env: Environment) => {
         allowUserToCreateOrganization: true,
         creatorRole: 'owner',
         sendInvitationEmail: async data => {
-          const inviteLink = `${env.AUTH_CLIENT_URL}/accept-invite/${data.id}`;
-          await fetch(
-            `${env.NOTIFICATION_SERVICE_URL}/api/v1/notifications/email`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                to: data.email,
-                template: 'organization-invite',
-                data: {
-                  inviteLink,
-                  organizationName: data.organization.name,
-                  inviterName: data.inviter.name,
-                  role: data.role,
-                },
-              }),
-            }
-          );
+          await sendOrganizationInviteEmail(env.NOTIFICATION_SERVICE_URL, {
+            to: data.email,
+            inviteLink: `${env.AUTH_CLIENT_URL}/accept-invite/${data.id}`,
+            organizationName: data.organization.name,
+            inviterName: data.inviter.name,
+            role: data.role,
+          });
         },
       }),
       apiKey({
