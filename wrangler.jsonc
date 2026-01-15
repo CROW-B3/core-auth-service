@@ -11,7 +11,10 @@
   },
   "vars": {
     "ENVIRONMENT": "prod",
-    "BETTER_AUTH_URL": "https://internal.auth-api.crowai.dev",
+    "BETTER_AUTH_URL": "https://api.crowai.dev",
+    "PRODUCT_SERVICE_URL": "https://internal.products.crowai.dev",
+    "AUTH_CLIENT_URL": "https://auth.crowai.dev",
+    "NOTIFICATION_SERVICE_URL": "https://internal.notifications.crowai.dev",
   },
   "d1_databases": [
     {
@@ -24,11 +27,22 @@
   "routes": [
     { "pattern": "internal.auth-api.crowai.dev", "custom_domain": true },
   ],
+  "queues": {
+    "producers": [
+      {
+        "queue": "crow-product-crawl-queue",
+        "binding": "PRODUCT_CRAWL_QUEUE"
+      }
+    ]
+  },
   "env": {
     "dev": {
       "vars": {
         "ENVIRONMENT": "dev",
-        "BETTER_AUTH_URL": "https://dev.internal.auth-api.crowai.dev",
+        "BETTER_AUTH_URL": "https://dev.api.crowai.dev",
+        "PRODUCT_SERVICE_URL": "https://dev.internal.products.crowai.dev",
+        "AUTH_CLIENT_URL": "https://dev.auth.crowai.dev",
+        "NOTIFICATION_SERVICE_URL": "https://dev.internal.notifications.crowai.dev",
       },
       "routes": [
         {
@@ -44,11 +58,22 @@
           "migrations_dir": "drizzle/migrations",
         },
       ],
+      "queues": {
+        "producers": [
+          {
+            "queue": "crow-product-crawl-queue-dev",
+            "binding": "PRODUCT_CRAWL_QUEUE"
+          }
+        ]
+      },
     },
     "local": {
       "vars": {
         "ENVIRONMENT": "local",
-        "BETTER_AUTH_URL": "http://localhost:8001",
+        "BETTER_AUTH_URL": "http://localhost:8000",
+        "PRODUCT_SERVICE_URL": "http://localhost:8003",
+        "AUTH_CLIENT_URL": "http://localhost:3001",
+        "NOTIFICATION_SERVICE_URL": "http://localhost:8006",
       },
       "d1_databases": [
         {
@@ -58,6 +83,14 @@
           "migrations_dir": "drizzle/migrations",
         },
       ],
+      "queues": {
+        "producers": [
+          {
+            "queue": "crow-product-crawl-queue-local",
+            "binding": "PRODUCT_CRAWL_QUEUE"
+          }
+        ]
+      },
     },
   },
 }
