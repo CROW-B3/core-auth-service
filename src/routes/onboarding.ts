@@ -42,130 +42,146 @@ const sourceStepSchema = z.object({
 onboardingRoutes.post(
   '/start',
   zValidator('json', startOnboardingSchema),
-  async c => {
-    const db = drizzle(c.env.DB, { schema });
-    const { betterAuthUserId } = c.req.valid('json');
+  async context => {
+    const database = drizzle(context.env.DB, { schema });
+    const { betterAuthUserId } = context.req.valid('json');
 
     const result = await onboardingService.startOnboarding(
-      db,
-      c.env,
+      database,
+      context.env,
       betterAuthUserId
     );
 
-    if (result.redirect) return c.json({ redirect: result.redirect });
-    return c.json({ onboarding: result.onboarding }, 201);
+    if (result.redirect) return context.json({ redirect: result.redirect });
+    return context.json({ onboarding: result.onboarding }, 201);
   }
 );
 
-onboardingRoutes.get('/:id', async c => {
-  const db = drizzle(c.env.DB, { schema });
-  const id = c.req.param('id');
+onboardingRoutes.get('/:id', async context => {
+  const database = drizzle(context.env.DB, { schema });
+  const onboardingId = context.req.param('id');
 
-  const onboarding = await onboardingService.getOnboardingStatus(db, id);
-  if (!onboarding) return c.json({ error: 'Onboarding not found' }, 404);
+  const onboarding = await onboardingService.getOnboardingStatus(
+    database,
+    onboardingId
+  );
+  if (!onboarding) return context.json({ error: 'Onboarding not found' }, 404);
 
-  return c.json({ onboarding });
+  return context.json({ onboarding });
 });
 
-onboardingRoutes.get('/user/:userId', async c => {
-  const db = drizzle(c.env.DB, { schema });
-  const userId = c.req.param('userId');
+onboardingRoutes.get('/user/:userId', async context => {
+  const database = drizzle(context.env.DB, { schema });
+  const userId = context.req.param('userId');
 
-  const onboarding = await onboardingService.getOnboardingByUserId(db, userId);
-  if (!onboarding) return c.json({ error: 'Onboarding not found' }, 404);
+  const onboarding = await onboardingService.getOnboardingByUserId(
+    database,
+    userId
+  );
+  if (!onboarding) return context.json({ error: 'Onboarding not found' }, 404);
 
-  return c.json({ onboarding });
+  return context.json({ onboarding });
 });
 
 onboardingRoutes.patch(
   '/:id/step/organization',
   zValidator('json', organizationStepSchema),
-  async c => {
-    const db = drizzle(c.env.DB, { schema });
-    const id = c.req.param('id');
-    const body = c.req.valid('json');
+  async context => {
+    const database = drizzle(context.env.DB, { schema });
+    const onboardingId = context.req.param('id');
+    const body = context.req.valid('json');
 
     const onboarding = await onboardingService.processOrganizationStep(
-      db,
-      c.env,
-      id,
+      database,
+      context.env,
+      onboardingId,
       body.betterAuthOrgId,
       body.betterAuthUserId,
       { organizationName: body.organizationName, slug: body.slug }
     );
 
-    return c.json({ onboarding });
+    return context.json({ onboarding });
   }
 );
 
 onboardingRoutes.patch(
   '/:id/step/plan',
   zValidator('json', planStepSchema),
-  async c => {
-    const db = drizzle(c.env.DB, { schema });
-    const id = c.req.param('id');
-    const body = c.req.valid('json');
+  async context => {
+    const database = drizzle(context.env.DB, { schema });
+    const onboardingId = context.req.param('id');
+    const body = context.req.valid('json');
 
     const onboarding = await onboardingService.processPlanStep(
-      db,
-      c.env,
-      id,
+      database,
+      context.env,
+      onboardingId,
       body
     );
 
-    return c.json({ onboarding });
+    return context.json({ onboarding });
   }
 );
 
 onboardingRoutes.patch(
   '/:id/step/products',
   zValidator('json', productsStepSchema),
-  async c => {
-    const db = drizzle(c.env.DB, { schema });
-    const id = c.req.param('id');
-    const body = c.req.valid('json');
+  async context => {
+    const database = drizzle(context.env.DB, { schema });
+    const onboardingId = context.req.param('id');
+    const body = context.req.valid('json');
 
     const onboarding = await onboardingService.processProductsStep(
-      db,
-      c.env,
-      id,
+      database,
+      context.env,
+      onboardingId,
       body
     );
 
-    return c.json({ onboarding });
+    return context.json({ onboarding });
   }
 );
 
 onboardingRoutes.patch(
   '/:id/step/sources',
   zValidator('json', sourceStepSchema),
-  async c => {
-    const db = drizzle(c.env.DB, { schema });
-    const id = c.req.param('id');
-    const body = c.req.valid('json');
+  async context => {
+    const database = drizzle(context.env.DB, { schema });
+    const onboardingId = context.req.param('id');
+    const body = context.req.valid('json');
 
-    const onboarding = await onboardingService.processSourceStep(db, id, body);
+    const onboarding = await onboardingService.processSourceStep(
+      database,
+      onboardingId,
+      body
+    );
 
-    return c.json({ onboarding });
+    return context.json({ onboarding });
   }
 );
 
-onboardingRoutes.patch('/:id/step/team', async c => {
-  const db = drizzle(c.env.DB, { schema });
-  const id = c.req.param('id');
+onboardingRoutes.patch('/:id/step/team', async context => {
+  const database = drizzle(context.env.DB, { schema });
+  const onboardingId = context.req.param('id');
 
-  const onboarding = await onboardingService.processTeamStep(db, id);
+  const onboarding = await onboardingService.processTeamStep(
+    database,
+    onboardingId
+  );
 
-  return c.json({ onboarding });
+  return context.json({ onboarding });
 });
 
-onboardingRoutes.post('/:id/complete', async c => {
-  const db = drizzle(c.env.DB, { schema });
-  const id = c.req.param('id');
+onboardingRoutes.post('/:id/complete', async context => {
+  const database = drizzle(context.env.DB, { schema });
+  const onboardingId = context.req.param('id');
 
-  const onboarding = await onboardingService.completeOnboarding(db, id);
+  const onboarding = await onboardingService.completeOnboarding(
+    database,
+    onboardingId
+  );
 
-  return c.json({ onboarding });
+  return context.json({ onboarding });
 });
 
 export default onboardingRoutes;
