@@ -31,59 +31,58 @@ export interface UpdateOnboardingInput {
   completedAt?: Date;
 }
 
-export const findOnboardingById = async (db: Database, id: string) => {
-  const result = await db
+export const findOnboardingById = async (database: Database, id: string) => {
+  const results = await database
     .select()
     .from(schema.onboarding)
     .where(eq(schema.onboarding.id, id))
     .limit(1);
-  return result[0] ?? null;
+  return results[0] ?? null;
 };
 
 export const createOnboardingRecord = async (
-  db: Database,
+  database: Database,
   input: CreateOnboardingInput
 ) => {
-  const now = new Date();
-  await db.insert(schema.onboarding).values({
+  const timestamp = new Date();
+  await database.insert(schema.onboarding).values({
     id: input.id,
     betterAuthUserId: input.betterAuthUserId,
-    createdAt: now,
+    createdAt: timestamp,
   });
-  return findOnboardingById(db, input.id);
+  return findOnboardingById(database, input.id);
 };
 
 export const findOnboardingByUserId = async (
-  db: Database,
+  database: Database,
   betterAuthUserId: string
 ) => {
-  const result = await db
+  const results = await database
     .select()
     .from(schema.onboarding)
     .where(eq(schema.onboarding.betterAuthUserId, betterAuthUserId))
     .limit(1);
-  return result[0] ?? null;
+  return results[0] ?? null;
+};
+
+const isOnboardingActive = (
+  onboarding: typeof schema.onboarding.$inferSelect | null
+) => {
+  return onboarding?.status === 'in_progress';
 };
 
 export const findActiveOnboardingByUserId = async (
-  db: Database,
+  database: Database,
   betterAuthUserId: string
 ) => {
-  const result = await db
-    .select()
-    .from(schema.onboarding)
-    .where(eq(schema.onboarding.betterAuthUserId, betterAuthUserId))
-    .limit(1);
-  const onboarding = result[0];
-  if (!onboarding || onboarding.status !== 'in_progress') return null;
+  const onboarding = await findOnboardingByUserId(database, betterAuthUserId);
+  if (!isOnboardingActive(onboarding)) return null;
   return onboarding;
 };
 
-export const updateOnboardingRecord = async (
-  db: Database,
-  id: string,
+const buildUpdateDataObject = (
   input: UpdateOnboardingInput
-) => {
+): Record<string, unknown> => {
   const updateData: Record<string, unknown> = {};
 
   if (input.betterAuthOrgId !== undefined)
@@ -106,14 +105,27 @@ export const updateOnboardingRecord = async (
   if (input.completedAt !== undefined)
     updateData.completedAt = input.completedAt;
 
-  await db
+  return updateData;
+};
+
+export const updateOnboardingRecord = async (
+  database: Database,
+  id: string,
+  input: UpdateOnboardingInput
+) => {
+  const updateData = buildUpdateDataObject(input);
+
+  await database
     .update(schema.onboarding)
     .set(updateData)
     .where(eq(schema.onboarding.id, id));
 
-  return findOnboardingById(db, id);
+  return findOnboardingById(database, id);
 };
 
-export const deleteOnboardingRecord = async (db: Database, id: string) => {
-  await db.delete(schema.onboarding).where(eq(schema.onboarding.id, id));
+export const deleteOnboardingRecord = async (
+  database: Database,
+  id: string
+) => {
+  await database.delete(schema.onboarding).where(eq(schema.onboarding.id, id));
 };
