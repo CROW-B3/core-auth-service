@@ -1,6 +1,7 @@
 import type { DrizzleD1Database } from 'drizzle-orm/d1';
-import type * as schema from '../db/schema';
 import type { Environment } from '../types';
+import { eq } from 'drizzle-orm';
+import * as schema from '../db/schema';
 import * as onboardingRepo from '../repositories/onboarding';
 
 type Database = DrizzleD1Database<typeof schema>;
@@ -126,6 +127,7 @@ export const startOnboarding = async (
 ): Promise<StartOnboardingResult> => {
   const serviceUrls = getServiceUrlsForEnvironment(environment);
 
+  // First check if user already has an organization via user service
   const existingUser = await fetchExistingUserFromService(
     `${serviceUrls.userService}/api/v1/users`,
     betterAuthUserId
@@ -135,12 +137,32 @@ export const startOnboarding = async (
     return { onboarding: null as never, redirect: '/dashboard' };
   }
 
-  const existingOnboarding = await onboardingRepo.findActiveOnboardingByUserId(
+  // Check for ANY existing onboarding (not just active)
+  const existingOnboarding = await onboardingRepo.findOnboardingByUserId(
     database,
     betterAuthUserId
   );
-  if (existingOnboarding) return { onboarding: existingOnboarding };
 
+  if (existingOnboarding) {
+    // If onboarding is completed, redirect to dashboard
+    if (existingOnboarding.status === 'completed') {
+      return { onboarding: null as never, redirect: '/dashboard' };
+    }
+
+    // If onboarding is in_progress, return it to continue
+    if (existingOnboarding.status === 'in_progress') {
+      return { onboarding: existingOnboarding };
+    }
+
+    // If abandoned, we could either resume or create new - let's create new
+    // (delete the abandoned one first)
+    await onboardingRepo.deleteOnboardingRecord(
+      database,
+      existingOnboarding.id
+    );
+  }
+
+  // No onboarding exists or was abandoned, create new
   const onboardingId = crypto.randomUUID();
   const onboarding = await onboardingRepo.createOnboardingRecord(database, {
     id: onboardingId,
@@ -346,6 +368,26 @@ export const processSourceStep = async (
   });
 };
 
+export const processCheckoutStep = async (
+  database: Database,
+  onboardingId: string,
+  _stripeSessionId: string
+) => {
+  const onboarding = await onboardingRepo.findOnboardingById(
+    database,
+    onboardingId
+  );
+  if (!onboarding) throw new Error('Onboarding not found');
+
+  return onboardingRepo.updateOnboardingRecord(database, onboardingId, {
+    currentStep: 4,
+    completedSteps: appendStepToCompletedSteps(
+      onboarding.completedSteps,
+      'checkout'
+    ),
+  });
+};
+
 export const processTeamStep = async (
   database: Database,
   onboardingId: string
@@ -365,10 +407,104 @@ export const processTeamStep = async (
   });
 };
 
+const finalizeOrgBuilderViaService = async (
+  serviceUrl: string,
+  orgBuilderId: string,
+  slug: string
+) => {
+  const response = await fetch(
+    `${serviceUrl}/api/v1/org-builders/${orgBuilderId}/finalize`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug }),
+    }
+  );
+  if (!response.ok) throw new Error('Failed to finalize org builder');
+  return response.json();
+};
+
+const finalizeUserBuilderViaService = async (
+  serviceUrl: string,
+  userBuilderId: string,
+  email: string,
+  name: string,
+  role: 'owner' | 'admin' | 'member'
+) => {
+  const response = await fetch(
+    `${serviceUrl}/api/v1/user-builders/${userBuilderId}/finalize`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, name, role }),
+    }
+  );
+  if (!response.ok) throw new Error('Failed to finalize user builder');
+  return response.json();
+};
+
+const getBetterAuthUserById = async (database: Database, userId: string) => {
+  const results = await database
+    .select()
+    .from(schema.user)
+    .where(eq(schema.user.id, userId))
+    .limit(1);
+  return results[0] ?? null;
+};
+
+const getBetterAuthOrgById = async (database: Database, orgId: string) => {
+  const results = await database
+    .select()
+    .from(schema.organization)
+    .where(eq(schema.organization.id, orgId))
+    .limit(1);
+  return results[0] ?? null;
+};
+
 export const completeOnboarding = async (
   database: Database,
+  environment: Environment,
   onboardingId: string
 ) => {
+  const onboarding = await onboardingRepo.findOnboardingById(
+    database,
+    onboardingId
+  );
+  if (!onboarding) throw new Error('Onboarding not found');
+
+  const serviceUrls = getServiceUrlsForEnvironment(environment);
+
+  const betterAuthUser = await getBetterAuthUserById(
+    database,
+    onboarding.betterAuthUserId
+  );
+  if (!betterAuthUser) throw new Error('User not found');
+
+  if (onboarding.orgBuilderId && onboarding.betterAuthOrgId) {
+    const betterAuthOrg = await getBetterAuthOrgById(
+      database,
+      onboarding.betterAuthOrgId
+    );
+
+    if (betterAuthOrg) {
+      await finalizeOrgBuilderViaService(
+        serviceUrls.orgService,
+        onboarding.orgBuilderId,
+        betterAuthOrg.slug
+      );
+    }
+  }
+
+  if (onboarding.userBuilderId) {
+    await finalizeUserBuilderViaService(
+      serviceUrls.userService,
+      onboarding.userBuilderId,
+      betterAuthUser.email,
+      betterAuthUser.name,
+      'owner'
+    );
+  }
+
   return onboardingRepo.updateOnboardingRecord(database, onboardingId, {
     status: 'completed',
     completedAt: new Date(),
