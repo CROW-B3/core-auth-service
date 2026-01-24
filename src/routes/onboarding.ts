@@ -39,6 +39,10 @@ const sourceStepSchema = z.object({
   apiKeyId: z.string(),
 });
 
+const checkoutStepSchema = z.object({
+  stripeSessionId: z.string(),
+});
+
 onboardingRoutes.post(
   '/start',
   zValidator('json', startOnboardingSchema),
@@ -124,6 +128,24 @@ onboardingRoutes.patch(
 );
 
 onboardingRoutes.patch(
+  '/:id/step/checkout',
+  zValidator('json', checkoutStepSchema),
+  async context => {
+    const database = drizzle(context.env.DB, { schema });
+    const onboardingId = context.req.param('id');
+    const body = context.req.valid('json');
+
+    const onboarding = await onboardingService.processCheckoutStep(
+      database,
+      onboardingId,
+      body.stripeSessionId
+    );
+
+    return context.json({ onboarding });
+  }
+);
+
+onboardingRoutes.patch(
   '/:id/step/products',
   zValidator('json', productsStepSchema),
   async context => {
@@ -178,6 +200,7 @@ onboardingRoutes.post('/:id/complete', async context => {
 
   const onboarding = await onboardingService.completeOnboarding(
     database,
+    context.env,
     onboardingId
   );
 
