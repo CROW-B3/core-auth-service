@@ -225,15 +225,19 @@ const updateBillingBuilderViService = async (
   billingBuilderId: string,
   input: PlanStepInput
 ) => {
-  await fetch(`${serviceUrl}/api/v1/billing-builders/${billingBuilderId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      modules: input.modules,
-      payAsYouGo: input.payAsYouGo,
-      billingPeriod: input.billingPeriod,
-    }),
-  });
+  const response = await fetch(
+    `${serviceUrl}/api/v1/billing-builders/${billingBuilderId}`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        modules: input.modules,
+        payAsYouGo: input.payAsYouGo,
+        billingPeriod: input.billingPeriod,
+      }),
+    }
+  );
+  if (!response.ok) throw new Error('Failed to update billing builder');
 };
 
 export const processPlanStep = async (
@@ -427,6 +431,7 @@ const finalizeOrgBuilderViaService = async (
 const finalizeUserBuilderViaService = async (
   serviceUrl: string,
   userBuilderId: string,
+  authId: string,
   email: string,
   name: string,
   role: 'owner' | 'admin' | 'member'
@@ -436,7 +441,7 @@ const finalizeUserBuilderViaService = async (
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, name, role }),
+      body: JSON.stringify({ authId, email, name, role }),
     }
   );
   if (!response.ok) throw new Error('Failed to finalize user builder');
@@ -499,6 +504,7 @@ export const completeOnboarding = async (
     await finalizeUserBuilderViaService(
       serviceUrls.userService,
       onboarding.userBuilderId,
+      betterAuthUser.id, // Pass authId
       betterAuthUser.email,
       betterAuthUser.name,
       'owner'
