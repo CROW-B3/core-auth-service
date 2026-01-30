@@ -81,12 +81,8 @@ export const apikey = sqliteTable('apikey', {
 
 export const onboarding = sqliteTable('onboarding', {
   id: text('id').primaryKey(),
-  betterAuthUserId: text('betterAuthUserId')
-    .notNull()
-    .references(() => user.id, { onDelete: 'cascade' }),
-  betterAuthOrgId: text('betterAuthOrgId').references(() => organization.id, {
-    onDelete: 'set null',
-  }),
+  betterAuthUserId: text('betterAuthUserId').notNull(),
+  betterAuthOrgId: text('betterAuthOrgId'),
   orgBuilderId: text('orgBuilderId'),
   userBuilderId: text('userBuilderId'),
   billingBuilderId: text('billingBuilderId'),

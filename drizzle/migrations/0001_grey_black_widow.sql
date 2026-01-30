@@ -59,9 +59,7 @@ CREATE TABLE `onboarding` (
 	`sources` text DEFAULT '{}' NOT NULL,
 	`status` text DEFAULT 'in_progress' NOT NULL,
 	`createdAt` integer NOT NULL,
-	`completedAt` integer,
-	FOREIGN KEY (`betterAuthUserId`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`betterAuthOrgId`) REFERENCES `organization`(`id`) ON UPDATE no action ON DELETE set null
+	`completedAt` integer
 );
 --> statement-breakpoint
 CREATE TABLE `organization` (
