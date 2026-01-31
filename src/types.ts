@@ -16,4 +16,6 @@ export interface Environment {
   PRODUCT_SERVICE_URL: string;
   AUTH_CLIENT_URL: string;
   NOTIFICATION_SERVICE_URL: string;
+  USER_SERVICE_URL: string;
+  DASHBOARD_URL: string;
 }
