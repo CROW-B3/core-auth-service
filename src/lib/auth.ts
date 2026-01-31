@@ -15,6 +15,11 @@ export const createAuth = (env: Environment) => {
     basePath: '/api/v1/auth',
     secret: env.BETTER_AUTH_SECRET,
 
+    session: {
+      updateAge: 24 * 60 * 60,
+      expiresIn: 7 * 24 * 60 * 60,
+    },
+
     emailAndPassword: {
       enabled: true,
     },
@@ -65,7 +70,6 @@ export const createAuth = (env: Environment) => {
       }),
       organization({
         allowUserToCreateOrganization: true,
-        creatorRole: 'owner',
         sendInvitationEmail: async data => {
           await sendOrganizationInviteEmail(env.NOTIFICATION_SERVICE_URL, {
             to: data.email,
