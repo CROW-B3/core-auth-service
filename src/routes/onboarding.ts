@@ -13,10 +13,10 @@ const startOnboardingSchema = z.object({
 });
 
 const organizationStepSchema = z.object({
-  organizationName: z.string().min(1),
-  slug: z.string().min(1),
   betterAuthOrgId: z.string(),
-  betterAuthUserId: z.string(),
+  orgBuilderId: z.string(),
+  userBuilderId: z.string(),
+  billingBuilderId: z.string(),
 });
 
 const planStepSchema = z.object({
@@ -32,6 +32,7 @@ const planStepSchema = z.object({
 const productsStepSchema = z.object({
   sourceType: z.enum(['csv', 'json', 'url']),
   sourceValue: z.string(),
+  jobId: z.string().optional(),
 });
 
 const sourceStepSchema = z.object({
@@ -52,7 +53,6 @@ onboardingRoutes.post(
 
     const result = await onboardingService.startOnboarding(
       database,
-      context.env,
       betterAuthUserId
     );
 
@@ -97,11 +97,8 @@ onboardingRoutes.patch(
 
     const onboarding = await onboardingService.processOrganizationStep(
       database,
-      context.env,
       onboardingId,
-      body.betterAuthOrgId,
-      body.betterAuthUserId,
-      { organizationName: body.organizationName, slug: body.slug }
+      body
     );
 
     return context.json({ onboarding });
@@ -118,7 +115,6 @@ onboardingRoutes.patch(
 
     const onboarding = await onboardingService.processPlanStep(
       database,
-      context.env,
       onboardingId,
       body
     );
@@ -155,7 +151,6 @@ onboardingRoutes.patch(
 
     const onboarding = await onboardingService.processProductsStep(
       database,
-      context.env,
       onboardingId,
       body
     );
@@ -200,7 +195,6 @@ onboardingRoutes.post('/:id/complete', async context => {
 
   const onboarding = await onboardingService.completeOnboarding(
     database,
-    context.env,
     onboardingId
   );
 
