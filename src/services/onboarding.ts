@@ -1,6 +1,7 @@
 import type { DrizzleD1Database } from 'drizzle-orm/d1';
 import type * as schema from '../db/schema';
 import * as onboardingRepo from '../repositories/onboarding';
+import { createSystemHeaders } from '../lib/system-jwt';
 
 type Database = DrizzleD1Database<typeof schema>;
 
@@ -52,10 +53,10 @@ export const startOnboarding = async (
 };
 
 export interface OrganizationStepInput {
-  betterAuthOrgId: string;
-  orgBuilderId: string;
-  userBuilderId: string;
-  billingBuilderId: string;
+  betterAuthOrgId?: string | null;
+  orgBuilderId?: string | null;
+  userBuilderId?: string | null;
+  billingBuilderId?: string | null;
 }
 
 export const processOrganizationStep = async (
@@ -63,14 +64,26 @@ export const processOrganizationStep = async (
   onboardingId: string,
   input: OrganizationStepInput
 ) => {
-  return onboardingRepo.updateOnboardingRecord(database, onboardingId, {
-    betterAuthOrgId: input.betterAuthOrgId,
-    orgBuilderId: input.orgBuilderId,
-    userBuilderId: input.userBuilderId,
-    billingBuilderId: input.billingBuilderId,
+  const updateData: Parameters<typeof onboardingRepo.updateOnboardingRecord>[2] = {
     currentStep: 2,
     completedSteps: ['organization'],
-  });
+  };
+
+  // Only include IDs if they're truthy values (not null/undefined/'null')
+  if (input.betterAuthOrgId && input.betterAuthOrgId !== 'null') {
+    updateData.betterAuthOrgId = input.betterAuthOrgId;
+  }
+  if (input.orgBuilderId && input.orgBuilderId !== 'null') {
+    updateData.orgBuilderId = input.orgBuilderId;
+  }
+  if (input.userBuilderId && input.userBuilderId !== 'null') {
+    updateData.userBuilderId = input.userBuilderId;
+  }
+  if (input.billingBuilderId && input.billingBuilderId !== 'null') {
+    updateData.billingBuilderId = input.billingBuilderId;
+  }
+
+  return onboardingRepo.updateOnboardingRecord(database, onboardingId, updateData);
 };
 
 export interface PlanStepInput {
@@ -82,13 +95,40 @@ export interface PlanStepInput {
 export const processPlanStep = async (
   database: Database,
   onboardingId: string,
-  _input: PlanStepInput
+  input: PlanStepInput,
+  billingServiceUrl: string,
+  secret: string
 ) => {
   const onboarding = await onboardingRepo.findOnboardingById(
     database,
     onboardingId
   );
   if (!onboarding) throw new Error('Onboarding not found');
+
+  if (!onboarding.billingBuilderId) {
+    throw new Error('Billing builder not found');
+  }
+
+  // Generate system JWT headers for service-to-service authentication
+  const headers = await createSystemHeaders(secret, 'auth-service');
+
+  // Update billing builder with selected modules
+  const updateResponse = await fetch(
+    `${billingServiceUrl}/api/v1/billing/billing-builders/${onboarding.billingBuilderId}`,
+    {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({
+        modules: input.modules,
+        payAsYouGo: input.payAsYouGo,
+        billingPeriod: input.billingPeriod,
+      }),
+    }
+  );
+
+  if (!updateResponse.ok) {
+    throw new Error('Failed to update billing builder');
+  }
 
   return onboardingRepo.updateOnboardingRecord(database, onboardingId, {
     currentStep: 3,
