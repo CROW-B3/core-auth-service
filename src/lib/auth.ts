@@ -18,6 +18,10 @@ export const createAuth = (env: Environment) => {
     session: {
       updateAge: 24 * 60 * 60,
       expiresIn: 7 * 24 * 60 * 60,
+      cookieCache: {
+        enabled: true,
+        maxAge: 5 * 60,
+      },
     },
 
     emailAndPassword: {
