@@ -13,10 +13,10 @@ const startOnboardingSchema = z.object({
 });
 
 const organizationStepSchema = z.object({
-  betterAuthOrgId: z.string(),
-  orgBuilderId: z.string(),
-  userBuilderId: z.string(),
-  billingBuilderId: z.string(),
+  betterAuthOrgId: z.string().optional().nullable(),
+  orgBuilderId: z.string().optional().nullable(),
+  userBuilderId: z.string().optional().nullable(),
+  billingBuilderId: z.string().optional().nullable(),
 });
 
 const planStepSchema = z.object({
@@ -116,7 +116,9 @@ onboardingRoutes.patch(
     const onboarding = await onboardingService.processPlanStep(
       database,
       onboardingId,
-      body
+      body,
+      context.env.BILLING_SERVICE_URL,
+      context.env.BETTER_AUTH_SECRET
     );
 
     return context.json({ onboarding });
