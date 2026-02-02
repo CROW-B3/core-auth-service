@@ -5,6 +5,7 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { LOCAL_ORIGINS, PROD_ORIGINS } from './constants';
 import { createAuth } from './lib/auth';
+import jwtRoutes from './routes/jwt';
 import onboardingRoutes from './routes/onboarding';
 import teamInvitationRoutes from './routes/team-invitations';
 
@@ -27,6 +28,7 @@ app.use('/api/v1/*', async (c, next) => {
   return corsMiddleware(c, next);
 });
 
+app.route('/api/v1/auth/jwt', jwtRoutes);
 app.route('/api/v1/auth/onboarding', onboardingRoutes);
 app.route('/api/v1/auth/team-invitations', teamInvitationRoutes);
 
