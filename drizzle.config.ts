@@ -3,7 +3,7 @@ import { drizzleD1Config } from '@deox/drizzle-d1-utils';
 
 export default drizzleD1Config(
   {
-    out: './drizzle/migrations',
+    out: './migrations',
     schema: './src/db/schema.ts',
   },
   {
