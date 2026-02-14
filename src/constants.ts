@@ -1,8 +1,10 @@
 export const PROD_ORIGINS = [
   'https://crowai.dev',
+  'https://auth.crowai.dev',
   'https://app.crowai.dev',
   'https://api.crowai.dev',
   'https://dev.crowai.dev',
+  'https://dev.auth.crowai.dev',
   'https://dev.app.crowai.dev',
   'https://dev.api.crowai.dev',
 ];

@@ -10,43 +10,51 @@ export interface ServiceCredentials {
 const SERVICE_REGISTRY: Record<string, ServiceCredentials> = {
   'service:user': {
     serviceId: 'service:user',
-    apiKey: '', // Set via env
-    allowedServices: ['service:auth', 'service:organization', 'service:billing'],
+    apiKey: '',
+    allowedServices: [
+      'service:auth',
+      'service:organization',
+      'service:billing',
+    ],
     allowedScopes: ['users:*', 'profiles:*'],
   },
   'service:organization': {
     serviceId: 'service:organization',
-    apiKey: '', // Set via env
+    apiKey: '',
     allowedServices: ['service:auth', 'service:user', 'service:billing'],
     allowedScopes: ['organizations:*', 'contexts:*'],
   },
   'service:billing': {
     serviceId: 'service:billing',
-    apiKey: '', // Set via env
+    apiKey: '',
     allowedServices: ['service:auth', 'service:user', 'service:organization'],
     allowedScopes: ['billing:*', 'subscriptions:*'],
   },
   'service:notification': {
     serviceId: 'service:notification',
-    apiKey: '', // Set via env
+    apiKey: '',
     allowedServices: ['service:auth', 'service:user', 'service:organization'],
     allowedScopes: ['notifications:*', 'emails:*'],
   },
   'service:product': {
     serviceId: 'service:product',
-    apiKey: '', // Set via env
+    apiKey: '',
     allowedServices: ['service:auth', 'service:organization'],
     allowedScopes: ['products:*', 'crawls:*'],
   },
 };
 
-export const loadServiceCredentials = (env: Environment): Record<string, ServiceCredentials> => {
+export const loadServiceCredentials = (
+  env: Environment
+): Record<string, ServiceCredentials> => {
   const registry = { ...SERVICE_REGISTRY };
 
   registry['service:user'].apiKey = env.SERVICE_API_KEY_USER || '';
-  registry['service:organization'].apiKey = env.SERVICE_API_KEY_ORGANIZATION || '';
+  registry['service:organization'].apiKey =
+    env.SERVICE_API_KEY_ORGANIZATION || '';
   registry['service:billing'].apiKey = env.SERVICE_API_KEY_BILLING || '';
-  registry['service:notification'].apiKey = env.SERVICE_API_KEY_NOTIFICATION || '';
+  registry['service:notification'].apiKey =
+    env.SERVICE_API_KEY_NOTIFICATION || '';
   registry['service:product'].apiKey = env.SERVICE_API_KEY_PRODUCT || '';
 
   return registry;
