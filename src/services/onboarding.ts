@@ -1,7 +1,7 @@
 import type { DrizzleD1Database } from 'drizzle-orm/d1';
 import type * as schema from '../db/schema';
-import * as onboardingRepo from '../repositories/onboarding';
 import { createSystemHeaders } from '../lib/system-jwt';
+import * as onboardingRepo from '../repositories/onboarding';
 
 type Database = DrizzleD1Database<typeof schema>;
 
@@ -53,37 +53,262 @@ export const startOnboarding = async (
 };
 
 export interface OrganizationStepInput {
-  betterAuthOrgId?: string | null;
-  orgBuilderId?: string | null;
-  userBuilderId?: string | null;
-  billingBuilderId?: string | null;
+  betterAuthOrgId: string;
+  organizationName: string;
+  betterAuthUserId: string;
 }
+
+const fetchUserFromBetterAuth = async (database: Database, userId: string) => {
+  const authUserQuery = await database.query.user.findFirst({
+    where: (users, { eq }) => eq(users.id, userId),
+  });
+
+  if (!authUserQuery) {
+    throw new Error('User not found in Better Auth');
+  }
+
+  return authUserQuery;
+};
+
+const createOrganizationViaService = async (
+  env: { ORGANIZATION_SERVICE_URL?: string },
+  systemHeaders: Record<string, string>,
+  data: { betterAuthOrgId: string; organizationName: string }
+) => {
+  const organizationServiceUrl =
+    env.ORGANIZATION_SERVICE_URL || 'http://localhost:8004';
+  const organizationResponse = await fetch(
+    `${organizationServiceUrl}/api/v1/organizations`,
+    {
+      method: 'POST',
+      headers: systemHeaders,
+      body: JSON.stringify({
+        betterAuthOrgId: data.betterAuthOrgId,
+        name: data.organizationName,
+      }),
+    }
+  );
+
+  if (!organizationResponse.ok) {
+    const errorBody = await organizationResponse.text();
+    console.error('Organization Service error:', {
+      status: organizationResponse.status,
+      statusText: organizationResponse.statusText,
+      body: errorBody,
+      url: `${organizationServiceUrl}/api/v1/organizations`,
+    });
+    throw new Error(
+      `Failed to create organization: ${organizationResponse.status} ${errorBody}`
+    );
+  }
+
+  return organizationResponse.json();
+};
+
+const fetchExistingUser = async (
+  userServiceUrl: string,
+  systemHeaders: Record<string, string>,
+  authUserId: string
+) => {
+  const response = await fetch(
+    `${userServiceUrl}/api/v1/users/by-auth-id/${authUserId}`,
+    { headers: systemHeaders }
+  );
+  if (!response.ok) return null;
+  return response.json();
+};
+
+const createNewUser = async (
+  userServiceUrl: string,
+  systemHeaders: Record<string, string>,
+  authUser: { id: string; email: string; name: string },
+  organizationId: string,
+  onboardingId: string
+) => {
+  const userResponse = await fetch(`${userServiceUrl}/api/v1/users`, {
+    method: 'POST',
+    headers: systemHeaders,
+    body: JSON.stringify({
+      betterAuthUserId: authUser.id,
+      organizationId,
+      email: authUser.email,
+      name: authUser.name,
+      role: 'admin',
+      modules: { web: true, cctv: true, social: true },
+      onboardingId,
+    }),
+  });
+
+  if (!userResponse.ok) {
+    const errorBody = await userResponse.text();
+    console.error('User Service error:', {
+      status: userResponse.status,
+      statusText: userResponse.statusText,
+      body: errorBody,
+    });
+    throw new Error(
+      `Failed to create user: ${userResponse.status} ${errorBody}`
+    );
+  }
+
+  return userResponse.json();
+};
+
+const ensureUserExistsInService = async (
+  env: { USER_SERVICE_URL: string },
+  systemHeaders: Record<string, string>,
+  authUser: { id: string; email: string; name: string },
+  organization: { id: string },
+  onboardingId: string
+) => {
+  const existingUser = await fetchExistingUser(
+    env.USER_SERVICE_URL,
+    systemHeaders,
+    authUser.id
+  );
+  if (existingUser) return existingUser;
+  return createNewUser(
+    env.USER_SERVICE_URL,
+    systemHeaders,
+    authUser,
+    organization.id,
+    onboardingId
+  );
+};
+
+const createBillingBuilderForOrganization = async (
+  env: { BILLING_SERVICE_URL: string },
+  systemHeaders: Record<string, string>,
+  organization: { id: string },
+  onboardingId: string
+) => {
+  const billingResponse = await fetch(
+    `${env.BILLING_SERVICE_URL}/api/v1/billing/billing-builders`,
+    {
+      method: 'POST',
+      headers: systemHeaders,
+      body: JSON.stringify({
+        organizationId: organization.id,
+        onboardingId,
+      }),
+    }
+  );
+
+  if (!billingResponse.ok) {
+    const errorBody = await billingResponse.text();
+    console.error('Billing Service error:', {
+      status: billingResponse.status,
+      statusText: billingResponse.statusText,
+      body: errorBody,
+    });
+    throw new Error(
+      `Failed to create billing builder: ${billingResponse.status} ${errorBody}`
+    );
+  }
+
+  return billingResponse.json();
+};
+
+const finalizeOrganizationStep = async (
+  database: Database,
+  onboardingId: string,
+  updates: {
+    betterAuthOrgId: string;
+    billingBuilderId: string;
+  }
+) => {
+  return onboardingRepo.updateOnboardingRecord(database, onboardingId, {
+    currentStep: 2,
+    completedSteps: ['organization'],
+    betterAuthOrgId: updates.betterAuthOrgId,
+    billingBuilderId: updates.billingBuilderId,
+  });
+};
 
 export const processOrganizationStep = async (
   database: Database,
   onboardingId: string,
-  input: OrganizationStepInput
+  input: OrganizationStepInput,
+  env: {
+    BETTER_AUTH_SECRET: string;
+    USER_SERVICE_URL: string;
+    ORGANIZATION_SERVICE_URL?: string;
+    BILLING_SERVICE_URL: string;
+  }
 ) => {
-  const updateData: Parameters<typeof onboardingRepo.updateOnboardingRecord>[2] = {
-    currentStep: 2,
-    completedSteps: ['organization'],
-  };
+  const systemHeaders = await createSystemHeaders(
+    env.BETTER_AUTH_SECRET,
+    'auth-service'
+  );
+  console.warn('[onboarding:org] Starting organization step', {
+    onboardingId,
+    orgServiceUrl: env.ORGANIZATION_SERVICE_URL,
+    userServiceUrl: env.USER_SERVICE_URL,
+    billingServiceUrl: env.BILLING_SERVICE_URL,
+  });
 
-  // Only include IDs if they're truthy values (not null/undefined/'null')
-  if (input.betterAuthOrgId && input.betterAuthOrgId !== 'null') {
-    updateData.betterAuthOrgId = input.betterAuthOrgId;
-  }
-  if (input.orgBuilderId && input.orgBuilderId !== 'null') {
-    updateData.orgBuilderId = input.orgBuilderId;
-  }
-  if (input.userBuilderId && input.userBuilderId !== 'null') {
-    updateData.userBuilderId = input.userBuilderId;
-  }
-  if (input.billingBuilderId && input.billingBuilderId !== 'null') {
-    updateData.billingBuilderId = input.billingBuilderId;
+  const authUser = await fetchUserFromBetterAuth(
+    database,
+    input.betterAuthUserId
+  );
+  console.warn('[onboarding:org] Auth user found:', {
+    id: authUser.id,
+    email: authUser.email,
+  });
+
+  let organization: any;
+  try {
+    organization = await createOrganizationViaService(env, systemHeaders, {
+      betterAuthOrgId: input.betterAuthOrgId,
+      organizationName: input.organizationName,
+    });
+    console.warn('[onboarding:org] Organization created:', organization);
+  } catch (error) {
+    console.error(
+      '[onboarding:org] Failed to create org:',
+      error instanceof Error ? error.message : error
+    );
+    throw error;
   }
 
-  return onboardingRepo.updateOnboardingRecord(database, onboardingId, updateData);
+  try {
+    await ensureUserExistsInService(
+      env,
+      systemHeaders,
+      authUser,
+      organization,
+      onboardingId
+    );
+    console.warn('[onboarding:org] User ensured in user service');
+  } catch (error) {
+    console.error(
+      '[onboarding:org] Failed to ensure user:',
+      error instanceof Error ? error.message : error
+    );
+    throw error;
+  }
+
+  let billingBuilder: any;
+  try {
+    billingBuilder = await createBillingBuilderForOrganization(
+      env,
+      systemHeaders,
+      organization,
+      onboardingId
+    );
+    console.warn('[onboarding:org] Billing builder created:', billingBuilder);
+  } catch (error) {
+    console.error(
+      '[onboarding:org] Failed to create billing builder:',
+      error instanceof Error ? error.message : error
+    );
+    throw error;
+  }
+
+  return finalizeOrganizationStep(database, onboardingId, {
+    betterAuthOrgId: input.betterAuthOrgId,
+    billingBuilderId: billingBuilder.id,
+  });
 };
 
 export interface PlanStepInput {
@@ -92,36 +317,35 @@ export interface PlanStepInput {
   billingPeriod: 'monthly' | 'annual';
 }
 
-export const processPlanStep = async (
+const validateOnboardingForPlanStep = async (
   database: Database,
-  onboardingId: string,
-  input: PlanStepInput,
-  billingServiceUrl: string,
-  secret: string
+  onboardingId: string
 ) => {
   const onboarding = await onboardingRepo.findOnboardingById(
     database,
     onboardingId
   );
   if (!onboarding) throw new Error('Onboarding not found');
-
-  if (!onboarding.billingBuilderId) {
+  if (!onboarding.billingBuilderId)
     throw new Error('Billing builder not found');
-  }
+  return onboarding;
+};
 
-  // Generate system JWT headers for service-to-service authentication
-  const headers = await createSystemHeaders(secret, 'auth-service');
-
-  // Update billing builder with selected modules
+const updateBillingBuilderWithPlan = async (
+  billingServiceUrl: string,
+  billingBuilderId: string,
+  headers: Record<string, string>,
+  planData: PlanStepInput
+) => {
   const updateResponse = await fetch(
-    `${billingServiceUrl}/api/v1/billing/billing-builders/${onboarding.billingBuilderId}`,
+    `${billingServiceUrl}/api/v1/billing/billing-builders/${billingBuilderId}`,
     {
       method: 'PATCH',
       headers,
       body: JSON.stringify({
-        modules: input.modules,
-        payAsYouGo: input.payAsYouGo,
-        billingPeriod: input.billingPeriod,
+        modules: planData.modules,
+        payAsYouGo: planData.payAsYouGo,
+        billingPeriod: planData.billingPeriod,
       }),
     }
   );
@@ -129,12 +353,47 @@ export const processPlanStep = async (
   if (!updateResponse.ok) {
     throw new Error('Failed to update billing builder');
   }
+};
+
+export const processPlanStep = async (
+  database: Database,
+  onboardingId: string,
+  input: PlanStepInput,
+  billingServiceUrl: string,
+  secret: string
+) => {
+  const onboarding = await validateOnboardingForPlanStep(
+    database,
+    onboardingId
+  );
+  console.warn('[onboarding:plan] Starting plan step', {
+    onboardingId,
+    billingBuilderId: onboarding.billingBuilderId,
+    billingServiceUrl,
+  });
+  const headers = await createSystemHeaders(secret, 'auth-service');
+
+  try {
+    await updateBillingBuilderWithPlan(
+      billingServiceUrl,
+      onboarding.billingBuilderId!,
+      headers,
+      input
+    );
+    console.warn('[onboarding:plan] Billing builder updated');
+  } catch (error) {
+    console.error(
+      '[onboarding:plan] Failed to update billing builder:',
+      error instanceof Error ? error.message : error
+    );
+    throw error;
+  }
 
   return onboardingRepo.updateOnboardingRecord(database, onboardingId, {
     currentStep: 3,
     completedSteps: appendStepToCompletedSteps(
       onboarding.completedSteps,
-      'plan'
+      'modules'
     ),
   });
 };
@@ -274,4 +533,57 @@ export const getOnboardingByUserId = async (
   betterAuthUserId: string
 ) => {
   return onboardingRepo.findOnboardingByUserId(database, betterAuthUserId);
+};
+
+const getStepNumberFromName = (step: string, currentStep: number): number => {
+  const stepMap: Record<string, number> = {
+    organization: 2,
+    modules: 3,
+    checkout: 4,
+    products: 5,
+    sources: 6,
+  };
+  return stepMap[step] || currentStep;
+};
+
+export const markStepCompleted = async (
+  database: Database,
+  onboardingId: string,
+  step: string
+): Promise<void> => {
+  const onboarding = await onboardingRepo.findOnboardingById(
+    database,
+    onboardingId
+  );
+  if (!onboarding) throw new Error('Onboarding not found');
+
+  const completedSteps = appendStepToCompletedSteps(
+    onboarding.completedSteps,
+    step
+  );
+  const currentStep = getStepNumberFromName(step, onboarding.currentStep);
+
+  await onboardingRepo.updateOnboardingRecord(database, onboardingId, {
+    completedSteps,
+    currentStep,
+  });
+};
+
+export const recordSourceConnection = async (
+  database: Database,
+  onboardingId: string,
+  sourceType: string
+): Promise<void> => {
+  const onboarding = await onboardingRepo.findOnboardingById(
+    database,
+    onboardingId
+  );
+  if (!onboarding) throw new Error('Onboarding not found');
+
+  const sources = parseExistingSources(onboarding.sources);
+  sources[sourceType] = { connected: true };
+
+  await onboardingRepo.updateOnboardingRecord(database, onboardingId, {
+    sources: sources as typeof onboarding.sources,
+  });
 };

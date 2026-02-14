@@ -37,13 +37,15 @@ app.post('/verify', async c => {
 
 app.post('/system/generate', async c => {
   try {
-    const { service, secret } = await c.req.json<{ service: string; secret: string }>();
+    const { service, secret } = await c.req.json<{
+      service: string;
+      secret: string;
+    }>();
 
     if (!service || !secret) {
       return c.json({ error: 'Service name and secret required' }, 400);
     }
 
-    // Validate the provided secret matches BETTER_AUTH_SECRET
     if (secret !== c.env.BETTER_AUTH_SECRET) {
       return c.json({ error: 'Invalid secret' }, 403);
     }
@@ -52,9 +54,9 @@ app.post('/system/generate', async c => {
 
     return c.json({
       token,
-      expiresIn: 86400, // 24 hours
+      expiresIn: 86400,
       type: 'system',
-      service
+      service,
     });
   } catch (error) {
     console.error('System JWT generation error:', error);
