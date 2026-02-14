@@ -1,5 +1,5 @@
-import { sign, verify } from 'hono/jwt';
 import type { Environment } from '../types';
+import { sign, verify } from 'hono/jwt';
 
 interface SystemJWTPayload {
   sub: string;
@@ -8,15 +8,19 @@ interface SystemJWTPayload {
   exp: number;
 }
 
-export const generateSystemJWT = async (secret: string, service: string): Promise<string> => {
+export const generateSystemJWT = async (
+  secret: string,
+  service: string
+): Promise<string> => {
   return await sign(
     {
       sub: 'system',
       type: 'system',
       service,
-      exp: Math.floor(Date.now() / 1000) + 86400, // 24hr
+      exp: Math.floor(Date.now() / 1000) + 86400,
     },
-    secret
+    secret,
+    'HS256'
   );
 };
 
@@ -25,7 +29,7 @@ export const verifySystemJWT = async (
   token: string
 ): Promise<SystemJWTPayload | null> => {
   try {
-    const payload = await verify(token, env.BETTER_AUTH_SECRET);
+    const payload = await verify(token, env.BETTER_AUTH_SECRET, 'HS256');
 
     if (payload.type !== 'system') {
       return null;
@@ -37,11 +41,14 @@ export const verifySystemJWT = async (
   }
 };
 
-export const createSystemHeaders = async (secret: string, service: string): Promise<Record<string, string>> => {
+export const createSystemHeaders = async (
+  secret: string,
+  service: string
+): Promise<Record<string, string>> => {
   const token = await generateSystemJWT(secret, service);
   return {
     'X-System-Token': 'true',
-    'Authorization': `Bearer ${token}`,
+    Authorization: `Bearer ${token}`,
     'Content-Type': 'application/json',
   };
 };
