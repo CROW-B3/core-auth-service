@@ -1,5 +1,5 @@
 import type { DrizzleD1Database } from 'drizzle-orm/d1';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import * as schema from '../db/schema';
 
 type Database = DrizzleD1Database<typeof schema>;
@@ -44,12 +44,22 @@ export const createOnboardingRecord = async (
   database: Database,
   input: CreateOnboardingInput
 ) => {
-  const timestamp = new Date();
-  await database.insert(schema.onboarding).values({
-    id: input.id,
-    betterAuthUserId: input.betterAuthUserId,
-    createdAt: timestamp,
-  });
+  const timestamp = Math.floor(Date.now() / 1000);
+
+  await database.run(
+    sql.raw(`
+    INSERT INTO onboarding (
+      id, betterAuthUserId, betterAuthOrgId, orgBuilderId, userBuilderId,
+      billingBuilderId, currentStep, completedSteps, productSource, sources,
+      status, createdAt, completedAt
+    ) VALUES (
+      '${input.id}', '${input.betterAuthUserId}', NULL, NULL, NULL,
+      NULL, 1, '[]', NULL, '{}',
+      'in_progress', ${timestamp}, NULL
+    )
+  `)
+  );
+
   return findOnboardingById(database, input.id);
 };
 

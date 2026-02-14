@@ -15,13 +15,39 @@ export const createAuth = (env: Environment) => {
     basePath: '/api/v1/auth',
     secret: env.BETTER_AUTH_SECRET,
 
+    rateLimit:
+      env.ENVIRONMENT === 'prod'
+        ? {
+            enabled: true,
+            window: 60,
+            max: 100,
+          }
+        : {
+            enabled: false,
+          },
+
+    onAPIError: { throw: true },
+
     session: {
       updateAge: 24 * 60 * 60,
       expiresIn: 7 * 24 * 60 * 60,
+      cookieCache: {
+        enabled: true,
+        maxAge: 5 * 60,
+      },
     },
 
     emailAndPassword: {
       enabled: true,
+      ...(env.ENVIRONMENT === 'prod'
+        ? {
+            rateLimit: {
+              enabled: true,
+              timeWindow: 60,
+              maxRequests: 5,
+            },
+          }
+        : {}),
     },
 
     socialProviders: {
@@ -85,8 +111,8 @@ export const createAuth = (env: Environment) => {
         defaultKeyLength: 32,
         rateLimit: {
           enabled: true,
-          window: 60 * 60,
-          max: 1000,
+          timeWindow: 60 * 60,
+          maxRequests: 1000,
         },
         enableMetadata: true,
       }),

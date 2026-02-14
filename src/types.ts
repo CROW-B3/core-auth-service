@@ -18,4 +18,10 @@ export interface Environment {
   NOTIFICATION_SERVICE_URL: string;
   USER_SERVICE_URL: string;
   DASHBOARD_URL: string;
+  BILLING_SERVICE_URL: string;
+  SERVICE_API_KEY_USER: string;
+  SERVICE_API_KEY_ORGANIZATION: string;
+  SERVICE_API_KEY_BILLING: string;
+  SERVICE_API_KEY_NOTIFICATION: string;
+  SERVICE_API_KEY_PRODUCT: string;
 }
