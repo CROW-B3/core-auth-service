@@ -3,6 +3,7 @@ import { drizzle } from 'drizzle-orm/d1';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import * as schema from '../db/schema';
+import { createSystemHeaders } from '../lib/system-jwt';
 import {
   addMemberToOrganization,
   checkEmailIsOrgMember,
@@ -61,7 +62,8 @@ const validateEmail = async (
   database: any,
   userServiceUrl: string,
   email: string,
-  organizationId: string
+  organizationId: string,
+  secret: string
 ): Promise<ValidationResult> => {
   const isAlreadyMember = await checkEmailIsOrgMember(
     database,
@@ -83,17 +85,23 @@ const validateEmail = async (
     return { email, status: 'pending_invite' };
   }
 
+  const systemHeaders = await createSystemHeaders(secret, 'auth-service');
   const response = await fetch(`${userServiceUrl}/api/v1/users/check-emails`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: systemHeaders,
     body: JSON.stringify({
       emails: [email],
       organizationId,
     }),
   });
 
-  const existingResult = await response.json();
-  const existsInUserService = existingResult.existingEmails.includes(email);
+  const existingResult = (await response.json()) as {
+    existingEmails?: string[];
+  };
+  const existingEmails: string[] = Array.isArray(existingResult.existingEmails)
+    ? existingResult.existingEmails
+    : [];
+  const existsInUserService = existingEmails.includes(email);
 
   if (existsInUserService) {
     const userId = await getUserIdByEmail(database, email);
@@ -108,14 +116,16 @@ const sendInvitationEmail = async (
   email: string,
   organizationName: string,
   inviterName: string,
-  inviteLink: string
+  inviteLink: string,
+  secret: string
 ): Promise<InvitationResult> => {
   try {
+    const systemHeaders = await createSystemHeaders(secret, 'auth-service');
     const response = await fetch(
       `${notificationServiceUrl}/api/v1/notifications/email`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: systemHeaders,
         body: JSON.stringify({
           to: email,
           template: 'organization-invite',
@@ -133,7 +143,7 @@ const sendInvitationEmail = async (
       return { email, error: errorData, status: 'failed' };
     }
 
-    const result = await response.json();
+    const result = (await response.json()) as { messageId?: string };
     return { email, messageId: result.messageId, status: 'invited' };
   } catch (error) {
     const errorMessage =
@@ -147,14 +157,16 @@ const sendAddedEmail = async (
   email: string,
   organizationName: string,
   inviterName: string,
-  dashboardLink: string
+  dashboardLink: string,
+  secret: string
 ): Promise<InvitationResult> => {
   try {
+    const systemHeaders = await createSystemHeaders(secret, 'auth-service');
     const response = await fetch(
       `${notificationServiceUrl}/api/v1/notifications/email`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: systemHeaders,
         body: JSON.stringify({
           to: email,
           template: 'added-to-organization',
@@ -172,7 +184,7 @@ const sendAddedEmail = async (
       return { email, error: errorData, status: 'failed' };
     }
 
-    const result = await response.json();
+    const result = (await response.json()) as { messageId?: string };
     return { email, messageId: result.messageId, status: 'added' };
   } catch (error) {
     const errorMessage =
@@ -188,13 +200,15 @@ const processEmail = async (
   authClientUrl: string,
   dashboardUrl: string,
   invitationData: InvitationRequest,
-  email: string
+  email: string,
+  secret: string
 ): Promise<InvitationResult> => {
   const validation = await validateEmail(
     database,
     userServiceUrl,
     email,
-    invitationData.organizationId
+    invitationData.organizationId,
+    secret
   );
 
   if (validation.status === 'already_member') {
@@ -227,7 +241,8 @@ const processEmail = async (
       email,
       invitationData.organizationName,
       invitationData.inviterName,
-      dashboardLink
+      dashboardLink,
+      secret
     );
   }
 
@@ -250,7 +265,8 @@ const processEmail = async (
     email,
     invitationData.organizationName,
     invitationData.inviterName,
-    inviteLink
+    inviteLink,
+    secret
   );
 };
 
@@ -260,7 +276,8 @@ const processAllEmails = async (
   userServiceUrl: string,
   authClientUrl: string,
   dashboardUrl: string,
-  invitationData: InvitationRequest
+  invitationData: InvitationRequest,
+  secret: string
 ): Promise<{ results: InvitationResult[]; errors: InvitationResult[] }> => {
   const results: InvitationResult[] = [];
   const errors: InvitationResult[] = [];
@@ -273,7 +290,8 @@ const processAllEmails = async (
       authClientUrl,
       dashboardUrl,
       invitationData,
-      email
+      email,
+      secret
     );
 
     if (result.error) {
@@ -318,7 +336,8 @@ teamInvitationRoutes.post('/send-invites', async context => {
     userServiceUrl,
     context.env.AUTH_CLIENT_URL,
     dashboardUrl,
-    invitationData
+    invitationData,
+    context.env.BETTER_AUTH_SECRET
   );
 
   return context.json({
