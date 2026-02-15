@@ -4,4 +4,6 @@ export interface Environment {
   ENVIRONMENT: 'local' | 'dev' | 'prod';
   BETTER_AUTH_URL: string;
   BETTER_AUTH_SECRET: string;
+  AXIOM_API_TOKEN: string;
+  AXIOM_DATASET: string;
 }

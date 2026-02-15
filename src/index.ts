@@ -1,10 +1,12 @@
 import type { Environment } from './types';
+import { instrument } from '@microlabs/otel-cf-workers';
 import { Hono } from 'hono';
 import { cache } from 'hono/cache';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { LOCAL_ORIGINS, PROD_ORIGINS } from './constants';
 import { createAuth } from './lib/auth';
+import { createOtelConfig } from './lib/otel';
 
 function getAllowedOrigins(env: Environment): string[] {
   if (env.ENVIRONMENT === 'local') {
@@ -38,4 +40,4 @@ app.get(
   c => c.json({ status: 'ok', service: 'core-auth-service' })
 );
 
-export default app;
+export default instrument(app, createOtelConfig('crow-core-auth-service'));
