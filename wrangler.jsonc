@@ -52,6 +52,8 @@
         "ORGANIZATION_SERVICE_URL": "https://dev.internal.orgs.crowai.dev",
         "DASHBOARD_URL": "https://dev.app.crowai.dev",
         "BETTER_AUTH_SECRET": "DF1IKzRMqusC5A/56EjCFuCAKVgPNoW6pibNi5IEsFw=",
+        "GOOGLE_CLIENT_ID": "293027116306-htkacq5rg045gatdks45h21vdbsae18r.apps.googleusercontent.com",
+        "GOOGLE_CLIENT_SECRET": "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",
       },
       "routes": [
         {
