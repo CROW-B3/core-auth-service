@@ -12,6 +12,7 @@
   "vars": {
     "ENVIRONMENT": "prod",
     "BETTER_AUTH_URL": "https://internal.auth-api.crowai.dev",
+    "AXIOM_DATASET": "crow-traces",
   },
   "d1_databases": [
     {
@@ -29,6 +30,7 @@
       "vars": {
         "ENVIRONMENT": "dev",
         "BETTER_AUTH_URL": "https://dev.internal.auth-api.crowai.dev",
+        "AXIOM_DATASET": "crow-traces",
       },
       "routes": [
         {
@@ -49,6 +51,7 @@
       "vars": {
         "ENVIRONMENT": "local",
         "BETTER_AUTH_URL": "http://localhost:8001",
+        "AXIOM_DATASET": "crow-traces",
       },
       "d1_databases": [
         {
