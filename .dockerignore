@@ -1,0 +1,8 @@
+node_modules
+.git
+.wrangler
+*.log
+.env*
+.dev.vars
+.husky
+.github
