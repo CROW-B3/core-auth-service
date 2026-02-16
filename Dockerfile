@@ -8,7 +8,7 @@ RUN bun install --frozen-lockfile --production --ignore-scripts
 
 COPY . ./
 
-RUN bun build src/index.ts --compile --outfile server
+RUN bun build src/index.ts --compile --outfile server --external cloudflare:workers
 
 FROM debian:bookworm-slim
 
