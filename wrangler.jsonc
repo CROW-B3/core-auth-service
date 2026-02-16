@@ -42,7 +42,7 @@
         {
           "binding": "DB",
           "database_name": "crow-core-auth-service-db-dev",
-          "database_id": "99c90045-cfbb-4da8-9a82-f3372a37dda3",
+          "database_id": "6468e4cb-e23d-4425-9961-86ae10289e1c",
           "migrations_dir": "drizzle/migrations",
         },
       ],
