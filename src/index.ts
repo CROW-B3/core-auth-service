@@ -1,7 +1,5 @@
 import type { Environment } from './types';
-import { OpenAPIHono } from '@hono/zod-openapi';
-import { drizzle } from 'drizzle-orm/d1';
-import { cache } from 'hono/cache';
+import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger as honoLogger } from 'hono/logger';
 import { createLogger } from './config/logger';
@@ -158,14 +156,7 @@ app.route('/api/v1/auth/onboarding', onboardingRoutes);
 app.route('/api/v1/auth/onboarding/callbacks', onboardingCallbackRoutes);
 app.route('/api/v1/auth/team-invitations', teamInvitationRoutes);
 
-app.get(
-  '/',
-  cache({
-    cacheName: 'core-auth-service',
-    cacheControl: 'max-age=300',
-  }),
-  c => c.json({ status: 'ok', service: 'core-auth-service' })
-);
+app.get('/', c => c.json({ status: 'ok', service: 'core-auth-service' }));
 
 app.doc('/api/docs', {
   openapi: '3.0.0',
