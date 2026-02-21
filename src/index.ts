@@ -28,6 +28,12 @@ app.on(['GET', 'POST'], '/api/v1/auth/*', c =>
   createAuth(c.env).handler(c.req.raw)
 );
 
-app.get('/', c => c.json({ status: 'ok', service: 'core-auth-service' }));
+app.get('/', c => {
+  const response = c.json({ status: 'ok', service: 'core-auth-service' });
+  if (c.env.ENVIRONMENT !== 'local') {
+    response.headers.set('Cache-Control', 'public, max-age=300');
+  }
+  return response;
+});
 
 export default app;
