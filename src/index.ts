@@ -1,6 +1,5 @@
 import type { Environment } from './types';
 import { Hono } from 'hono';
-import { cache } from 'hono/cache';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { LOCAL_ORIGINS, PROD_ORIGINS } from './constants';
@@ -29,13 +28,12 @@ app.on(['GET', 'POST'], '/api/v1/auth/*', c =>
   createAuth(c.env).handler(c.req.raw)
 );
 
-app.get(
-  '/',
-  cache({
-    cacheName: 'core-auth-service',
-    cacheControl: 'max-age=300',
-  }),
-  c => c.json({ status: 'ok', service: 'core-auth-service' })
-);
+app.get('/', c => {
+  const response = c.json({ status: 'ok', service: 'core-auth-service' });
+  if (c.env.ENVIRONMENT !== 'local') {
+    response.headers.set('Cache-Control', 'public, max-age=300');
+  }
+  return response;
+});
 
 export default app;
