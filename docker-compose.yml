@@ -1,0 +1,7 @@
+services:
+  auth-service:
+    build: .
+    ports:
+      - '8001:8080'
+    environment:
+      - ENVIRONMENT=local
