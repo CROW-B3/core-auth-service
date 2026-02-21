@@ -157,7 +157,13 @@ app.route('/api/v1/auth/onboarding', onboardingRoutes);
 app.route('/api/v1/auth/onboarding/callbacks', onboardingCallbackRoutes);
 app.route('/api/v1/auth/team-invitations', teamInvitationRoutes);
 
-app.get('/', c => c.json({ status: 'ok', service: 'core-auth-service' }));
+app.get('/', c => {
+  const response = c.json({ status: 'ok', service: 'core-auth-service' });
+  if (c.env.ENVIRONMENT !== 'local') {
+    response.headers.set('Cache-Control', 'public, max-age=300');
+  }
+  return response;
+});
 
 app.doc('/api/docs', {
   openapi: '3.0.0',
