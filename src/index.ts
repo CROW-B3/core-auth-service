@@ -110,6 +110,7 @@ app.use('/api/v1/auth/*', async (c, next) => {
     '/invite/',
     '/token',
     '/jwks',
+    '/api-key/',
   ];
 
   const isBetterAuthRoute = betterAuthPaths.some(authPath =>
