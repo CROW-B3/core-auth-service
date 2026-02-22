@@ -7,6 +7,7 @@ import { validateEnv } from './config/validate-env';
 import { LOCAL_ORIGINS, PROD_ORIGINS } from './constants';
 import * as schema from './db/schema';
 import { createAuth } from './lib/auth';
+import { syncOrgAndMember } from './lib/org-sync';
 import { HealthCheckRoute, ReadinessCheckRoute } from './routes/health';
 import jwtRoutes from './routes/jwt';
 import onboardingRoutes from './routes/onboarding';
@@ -110,11 +111,17 @@ app.use('/api/v1/auth/*', async (c, next) => {
     '/invite/',
     '/token',
     '/jwks',
+    '/api-key/',
   ];
 
-  const isBetterAuthRoute = betterAuthPaths.some(authPath =>
-    path.includes(authPath)
-  );
+  const customRoutes = [
+    '/api/v1/auth/api-key/verify',
+    '/api/v1/auth/api-key/system-token',
+  ];
+
+  const isBetterAuthRoute =
+    !customRoutes.includes(path) &&
+    betterAuthPaths.some(authPath => path.includes(authPath));
 
   if (isBetterAuthRoute) {
     try {
@@ -131,19 +138,55 @@ app.use('/api/v1/auth/*', async (c, next) => {
       }
 
       const response = await createAuth(c.env).handler(request);
+
+      // Post-process organization/create to sync org and member to internal services
+      if (path.includes('/organization/create') && response.status === 200) {
+        try {
+          const cloned = response.clone();
+          const orgData = (await cloned.json()) as {
+            id?: string;
+            name?: string;
+            members?: Array<{ userId: string; role: string }>;
+          };
+          if (orgData.id && orgData.name && orgData.members?.[0]) {
+            const member = orgData.members[0];
+            const syncPromise = syncOrgAndMember(
+              c.env,
+              orgData.id,
+              orgData.name,
+              member.userId,
+              member.role
+            );
+            if (c.executionCtx?.waitUntil) {
+              c.executionCtx.waitUntil(syncPromise);
+            } else {
+              await syncPromise;
+            }
+          }
+        } catch (syncErr) {
+          console.error('[org-create-sync] failed to parse/sync:', syncErr);
+        }
+      }
+
       return transformBetterAuthResponse(response, path);
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
       console.error(`[BetterAuth] ${path}:`, errMsg);
+      const isJsonParseError =
+        error instanceof SyntaxError ||
+        errMsg.toLowerCase().includes('unexpected token') ||
+        errMsg.toLowerCase().includes('unexpected end of json');
       return c.json(
         {
           error: {
-            code: 'AUTH_ERROR',
-            message: errMsg,
+            code: isJsonParseError ? 'INVALID_JSON' : 'AUTH_ERROR',
+            message: isJsonParseError
+              ? 'Malformed JSON in request body'
+              : errMsg,
             timestamp: new Date().toISOString(),
           },
         },
-        500
+        isJsonParseError ? 400 : 500
       );
     }
   }
@@ -151,12 +194,66 @@ app.use('/api/v1/auth/*', async (c, next) => {
   await next();
 });
 
+app.post('/api/v1/auth/api-key/verify', async c => {
+  const body = await c.req
+    .json<{ key?: string }>()
+    .catch(() => ({ key: undefined }));
+  const key =
+    body.key ??
+    c.req.header('X-API-Key') ??
+    c.req.header('Authorization')?.replace('Bearer ', '');
+  if (!key) return c.json({ valid: false, error: 'Missing key' }, 400);
+
+  const auth = createAuth(c.env);
+  const result = await (auth.api as any)
+    .verifyApiKey({ body: { key } })
+    .catch(() => null);
+  if (!result || !result.valid) return c.json({ valid: false }, 401);
+
+  return c.json({ valid: true, key: result.key });
+});
+
+app.post('/api/v1/auth/api-key/system-token', async c => {
+  const body = await c.req
+    .json<{ key?: string }>()
+    .catch(() => ({ key: undefined }));
+  const key =
+    body.key ??
+    c.req.header('X-API-Key') ??
+    c.req.header('Authorization')?.replace('Bearer ', '');
+  if (!key) return c.json({ error: 'Missing key' }, 400);
+
+  const auth = createAuth(c.env);
+  const result = await (auth.api as any)
+    .verifyApiKey({ body: { key } })
+    .catch(() => null);
+  if (!result?.valid) return c.json({ error: 'Invalid API key' }, 401);
+
+  const { generateSystemJWT } = await import('./lib/system-jwt');
+  const token = await generateSystemJWT(
+    c.env.BETTER_AUTH_SECRET,
+    'api-key-client'
+  );
+
+  return c.json({
+    token,
+    organizationId: result.key?.metadata?.organizationId ?? null,
+    userId: result.key?.userId ?? null,
+  });
+});
+
 app.route('/api/v1/auth/jwt', jwtRoutes);
 app.route('/api/v1/auth/onboarding', onboardingRoutes);
 app.route('/api/v1/auth/onboarding/callbacks', onboardingCallbackRoutes);
 app.route('/api/v1/auth/team-invitations', teamInvitationRoutes);
 
-app.get('/', c => c.json({ status: 'ok', service: 'core-auth-service' }));
+app.get('/', c => {
+  const response = c.json({ status: 'ok', service: 'core-auth-service' });
+  if (c.env.ENVIRONMENT !== 'local') {
+    response.headers.set('Cache-Control', 'public, max-age=300');
+  }
+  return response;
+});
 
 app.doc('/api/docs', {
   openapi: '3.0.0',
