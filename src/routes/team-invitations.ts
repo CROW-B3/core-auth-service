@@ -129,12 +129,8 @@ const sendInvitationEmail = async (
         headers: systemHeaders,
         body: JSON.stringify({
           to: email,
-          template: 'organization-invite',
-          data: {
-            organizationName,
-            inviterName,
-            inviteLink,
-          },
+          subject: `You've been invited to join ${organizationName}`,
+          html: `<p>${inviterName} has invited you to join <strong>${organizationName}</strong>.</p><p><a href="${inviteLink}">Accept Invitation</a></p>`,
         }),
       }
     );
@@ -170,12 +166,8 @@ const sendAddedEmail = async (
         headers: systemHeaders,
         body: JSON.stringify({
           to: email,
-          template: 'added-to-organization',
-          data: {
-            organizationName,
-            inviterName,
-            dashboardLink,
-          },
+          subject: `You've been added to ${organizationName}`,
+          html: `<p>${inviterName} has added you to <strong>${organizationName}</strong>.</p><p><a href="${dashboardLink}">Go to Dashboard</a></p>`,
         }),
       }
     );

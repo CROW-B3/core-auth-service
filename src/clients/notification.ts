@@ -17,13 +17,8 @@ export const sendOrganizationInviteEmail = async (
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         to: data.to,
-        template: 'organization-invite',
-        data: {
-          inviteLink: data.inviteLink,
-          organizationName: data.organizationName,
-          inviterName: data.inviterName,
-          role: data.role,
-        },
+        subject: `You've been invited to join ${data.organizationName}`,
+        html: `<p>${data.inviterName} has invited you to join <strong>${data.organizationName}</strong> as ${data.role}.</p><p><a href="${data.inviteLink}">Accept Invitation</a></p>`,
       }),
     }
   );
