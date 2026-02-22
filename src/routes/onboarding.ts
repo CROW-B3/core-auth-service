@@ -106,8 +106,6 @@ const handleGetOnboardingById = async (context: Context) => {
   return context.json({ onboarding });
 };
 
-onboardingRoutes.get('/:id', handleGetOnboardingById);
-
 const handleGetOnboardingByUserId = async (context: Context) => {
   const database = drizzle(context.env.DB, { schema });
   const userId = context.req.param('userId');
@@ -122,6 +120,8 @@ const handleGetOnboardingByUserId = async (context: Context) => {
 };
 
 onboardingRoutes.get('/user/:userId', handleGetOnboardingByUserId);
+
+onboardingRoutes.get('/:id', handleGetOnboardingById);
 
 const handleOrganizationStep = async (context: Context) => {
   const database = drizzle(context.env.DB, { schema });
