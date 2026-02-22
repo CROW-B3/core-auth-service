@@ -17,6 +17,7 @@ export interface Environment {
   AUTH_CLIENT_URL: string;
   NOTIFICATION_SERVICE_URL: string;
   USER_SERVICE_URL: string;
+  ORGANIZATION_SERVICE_URL: string;
   DASHBOARD_URL: string;
   BILLING_SERVICE_URL: string;
   SERVICE_API_KEY_USER: string;
