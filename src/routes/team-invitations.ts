@@ -1,4 +1,5 @@
 import type { Environment } from '../types';
+import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -347,6 +348,33 @@ teamInvitationRoutes.post('/send-invites', async context => {
     results,
     errors,
   });
+});
+
+teamInvitationRoutes.get('/list-invitations', async context => {
+  const organizationId = context.req.query('organizationId');
+
+  if (!organizationId) {
+    return context.json(
+      { error: 'organizationId query parameter is required' },
+      400
+    );
+  }
+
+  const database = drizzle(context.env.DB, { schema });
+
+  const invitations = await database
+    .select({
+      id: schema.invitation.id,
+      email: schema.invitation.email,
+      role: schema.invitation.role,
+      status: schema.invitation.status,
+      expiresAt: schema.invitation.expiresAt,
+      createdAt: schema.invitation.createdAt,
+    })
+    .from(schema.invitation)
+    .where(eq(schema.invitation.organizationId, organizationId));
+
+  return context.json({ invitations });
 });
 
 export default teamInvitationRoutes;

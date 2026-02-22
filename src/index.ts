@@ -115,9 +115,14 @@ app.use('/api/v1/auth/*', async (c, next) => {
     '/api-key/',
   ];
 
-  const isBetterAuthRoute = betterAuthPaths.some(authPath =>
-    path.includes(authPath)
-  );
+  const customRoutes = [
+    '/api/v1/auth/api-key/verify',
+    '/api/v1/auth/api-key/system-token',
+  ];
+
+  const isBetterAuthRoute =
+    !customRoutes.includes(path) &&
+    betterAuthPaths.some(authPath => path.includes(authPath));
 
   if (isBetterAuthRoute) {
     try {
@@ -138,20 +143,74 @@ app.use('/api/v1/auth/*', async (c, next) => {
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
       console.error(`[BetterAuth] ${path}:`, errMsg);
+      const isJsonParseError =
+        error instanceof SyntaxError ||
+        errMsg.toLowerCase().includes('unexpected token') ||
+        errMsg.toLowerCase().includes('unexpected end of json');
       return c.json(
         {
           error: {
-            code: 'AUTH_ERROR',
-            message: errMsg,
+            code: isJsonParseError ? 'INVALID_JSON' : 'AUTH_ERROR',
+            message: isJsonParseError
+              ? 'Malformed JSON in request body'
+              : errMsg,
             timestamp: new Date().toISOString(),
           },
         },
-        500
+        isJsonParseError ? 400 : 500
       );
     }
   }
 
   await next();
+});
+
+app.post('/api/v1/auth/api-key/verify', async c => {
+  const body = await c.req
+    .json<{ key?: string }>()
+    .catch(() => ({ key: undefined }));
+  const key =
+    body.key ??
+    c.req.header('X-API-Key') ??
+    c.req.header('Authorization')?.replace('Bearer ', '');
+  if (!key) return c.json({ valid: false, error: 'Missing key' }, 400);
+
+  const auth = createAuth(c.env);
+  const result = await (auth.api as any)
+    .verifyApiKey({ body: { key } })
+    .catch(() => null);
+  if (!result || !result.valid) return c.json({ valid: false }, 401);
+
+  return c.json({ valid: true, key: result.key });
+});
+
+app.post('/api/v1/auth/api-key/system-token', async c => {
+  const body = await c.req
+    .json<{ key?: string }>()
+    .catch(() => ({ key: undefined }));
+  const key =
+    body.key ??
+    c.req.header('X-API-Key') ??
+    c.req.header('Authorization')?.replace('Bearer ', '');
+  if (!key) return c.json({ error: 'Missing key' }, 400);
+
+  const auth = createAuth(c.env);
+  const result = await (auth.api as any)
+    .verifyApiKey({ body: { key } })
+    .catch(() => null);
+  if (!result?.valid) return c.json({ error: 'Invalid API key' }, 401);
+
+  const { generateSystemJWT } = await import('./lib/system-jwt');
+  const token = await generateSystemJWT(
+    c.env.BETTER_AUTH_SECRET,
+    'api-key-client'
+  );
+
+  return c.json({
+    token,
+    organizationId: result.key?.metadata?.organizationId ?? null,
+    userId: result.key?.userId ?? null,
+  });
 });
 
 app.route('/api/v1/auth/jwt', jwtRoutes);
