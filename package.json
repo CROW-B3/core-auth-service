@@ -6,6 +6,7 @@
     "dev": "wrangler dev --env local --port 8001",
     "dev:docker": "docker compose up --build",
     "deploy": "wrangler deploy --minify",
+    "typecheck": "tsgo --noEmit",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
     "db:studio": "drizzle-kit studio",
     "db:studio:remote": "REMOTE=1 drizzle-kit studio",
@@ -34,6 +35,7 @@
   "devDependencies": {
     "@commitlint/config-conventional": "^20.3.1",
     "@deox/drizzle-d1-utils": "^0.0.1",
+    "@typescript/native-preview": "latest",
     "better-sqlite3": "^12.5.0",
     "drizzle-kit": "^0.31.8",
     "husky": "^9.1.7",
