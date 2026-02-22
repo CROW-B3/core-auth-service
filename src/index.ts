@@ -9,6 +9,7 @@ import { validateEnv } from './config/validate-env';
 import { LOCAL_ORIGINS, PROD_ORIGINS } from './constants';
 import * as schema from './db/schema';
 import { createAuth } from './lib/auth';
+import { syncOrgAndMember } from './lib/org-sync';
 import { HealthCheckRoute, ReadinessCheckRoute } from './routes/health';
 import jwtRoutes from './routes/jwt';
 import onboardingRoutes from './routes/onboarding';
@@ -139,6 +140,36 @@ app.use('/api/v1/auth/*', async (c, next) => {
       }
 
       const response = await createAuth(c.env).handler(request);
+
+      // Post-process organization/create to sync org and member to internal services
+      if (path.includes('/organization/create') && response.status === 200) {
+        try {
+          const cloned = response.clone();
+          const orgData = (await cloned.json()) as {
+            id?: string;
+            name?: string;
+            members?: Array<{ userId: string; role: string }>;
+          };
+          if (orgData.id && orgData.name && orgData.members?.[0]) {
+            const member = orgData.members[0];
+            const syncPromise = syncOrgAndMember(
+              c.env,
+              orgData.id,
+              orgData.name,
+              member.userId,
+              member.role
+            );
+            if (c.executionCtx?.waitUntil) {
+              c.executionCtx.waitUntil(syncPromise);
+            } else {
+              await syncPromise;
+            }
+          }
+        } catch (syncErr) {
+          console.error('[org-create-sync] failed to parse/sync:', syncErr);
+        }
+      }
+
       return transformBetterAuthResponse(response, path);
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
