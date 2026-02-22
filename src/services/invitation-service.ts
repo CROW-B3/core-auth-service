@@ -63,9 +63,7 @@ export const createInvitation = async (
 ): Promise<string> => {
   const invitationId = crypto.randomUUID();
   const now = new Date();
-  const expiresAt = new Date(
-    now.getTime() + 7 * 24 * 60 * 60 * 1000
-  ).toISOString();
+  const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
   await database.insert(schema.invitation).values({
     id: invitationId,

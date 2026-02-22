@@ -156,6 +156,51 @@ export const createAuth = (env: Environment) => {
     ],
 
     databaseHooks: {
+      organization: {
+        create: {
+          after: async organization => {
+            try {
+              const systemToken = await generateSystemJWT(
+                env.BETTER_AUTH_SECRET,
+                'auth-service'
+              );
+              const systemHeaders = {
+                'Content-Type': 'application/json',
+                'X-System-Token': 'true',
+                Authorization: `Bearer ${systemToken}`,
+              };
+              const existingRes = await fetch(
+                `${env.ORGANIZATION_SERVICE_URL}/api/v1/organizations/by-auth-id/${organization.id}`,
+                { headers: systemHeaders }
+              );
+              if (existingRes.ok) return;
+              const createRes = await fetch(
+                `${env.ORGANIZATION_SERVICE_URL}/api/v1/organizations`,
+                {
+                  method: 'POST',
+                  headers: systemHeaders,
+                  body: JSON.stringify({
+                    betterAuthOrgId: organization.id,
+                    name: organization.name,
+                  }),
+                }
+              );
+              if (!createRes.ok) {
+                const errBody = await createRes.text();
+                console.error(
+                  '[databaseHooks] organization.create: failed to sync org to org service',
+                  { status: createRes.status, body: errBody }
+                );
+              }
+            } catch (err) {
+              console.error(
+                '[databaseHooks] organization.create: unexpected error during sync',
+                err
+              );
+            }
+          },
+        },
+      },
       member: {
         create: {
           after: async member => {
