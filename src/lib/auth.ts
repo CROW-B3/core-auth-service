@@ -6,7 +6,6 @@ import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import { sendOrganizationInviteEmail } from '../clients/notification';
 import * as schema from '../db/schema';
-import { generateSystemJWT } from './system-jwt';
 
 export const createAuth = (env: Environment) => {
   const db = drizzle(env.DB, { schema });
@@ -34,8 +33,7 @@ export const createAuth = (env: Environment) => {
       updateAge: 24 * 60 * 60,
       expiresIn: 7 * 24 * 60 * 60,
       cookieCache: {
-        enabled: true,
-        maxAge: 5 * 60,
+        enabled: false,
       },
     },
 
@@ -102,16 +100,16 @@ export const createAuth = (env: Environment) => {
           definePayload: async ({ user, session }) => {
             let organizationId: string | undefined;
             try {
-              const systemToken = await generateSystemJWT(
-                env.BETTER_AUTH_SECRET,
-                'auth-service'
-              );
               const res = await fetch(
                 `${env.USER_SERVICE_URL}/api/v1/users/by-auth-id/${user.id}`,
                 {
                   headers: {
-                    Authorization: `Bearer ${systemToken}`,
-                    'X-System-Token': '1',
+                    ...(env.INTERNAL_GATEWAY_KEY && {
+                      'X-Internal-Key': env.INTERNAL_GATEWAY_KEY,
+                    }),
+                    ...(env.SERVICE_API_KEY_USER && {
+                      'X-Service-API-Key': env.SERVICE_API_KEY_USER,
+                    }),
                   },
                 }
               );
@@ -138,7 +136,7 @@ export const createAuth = (env: Environment) => {
             to: data.email,
             inviteLink: `${env.AUTH_CLIENT_URL}/accept-invite/${data.id}`,
             organizationName: data.organization.name,
-            inviterName: data.inviter.name,
+            inviterName: (data.inviter as any).name,
             role: data.role,
           });
         },
@@ -158,16 +156,16 @@ export const createAuth = (env: Environment) => {
     databaseHooks: {
       organization: {
         create: {
-          after: async organization => {
+          after: async (organization: any) => {
             try {
-              const systemToken = await generateSystemJWT(
-                env.BETTER_AUTH_SECRET,
-                'auth-service'
-              );
-              const systemHeaders = {
+              const systemHeaders: Record<string, string> = {
                 'Content-Type': 'application/json',
-                'X-System-Token': 'true',
-                Authorization: `Bearer ${systemToken}`,
+                ...(env.INTERNAL_GATEWAY_KEY && {
+                  'X-Internal-Key': env.INTERNAL_GATEWAY_KEY,
+                }),
+                ...(env.SERVICE_API_KEY_ORGANIZATION && {
+                  'X-Service-API-Key': env.SERVICE_API_KEY_ORGANIZATION,
+                }),
               };
               const existingRes = await fetch(
                 `${env.ORGANIZATION_SERVICE_URL}/api/v1/organizations/by-auth-id/${organization.id}`,
@@ -203,7 +201,7 @@ export const createAuth = (env: Environment) => {
       },
       member: {
         create: {
-          after: async member => {
+          after: async (member: any) => {
             try {
               // Fetch user details from better-auth's own user table in the same D1 DB
               const userResults = await db
@@ -224,21 +222,19 @@ export const createAuth = (env: Environment) => {
 
               const { email, name } = userResults[0];
 
-              // Build system auth headers for service-to-service calls
-              const systemToken = await generateSystemJWT(
-                env.BETTER_AUTH_SECRET,
-                'auth-service'
-              );
-              const systemHeaders = {
+              const orgHeaders: Record<string, string> = {
                 'Content-Type': 'application/json',
-                'X-System-Token': 'true',
-                Authorization: `Bearer ${systemToken}`,
+                ...(env.INTERNAL_GATEWAY_KEY && {
+                  'X-Internal-Key': env.INTERNAL_GATEWAY_KEY,
+                }),
+                ...(env.SERVICE_API_KEY_ORGANIZATION && {
+                  'X-Service-API-Key': env.SERVICE_API_KEY_ORGANIZATION,
+                }),
               };
 
-              // Resolve better-auth org ID -> internal organization service org ID
               const orgRes = await fetch(
                 `${env.ORGANIZATION_SERVICE_URL}/api/v1/organizations/by-auth-id/${member.organizationId}`,
-                { headers: systemHeaders }
+                { headers: orgHeaders }
               );
 
               if (!orgRes.ok) {
@@ -254,12 +250,21 @@ export const createAuth = (env: Environment) => {
 
               const orgData = (await orgRes.json()) as { id: string };
 
-              // Create the internal user record in the user service
+              const userHeaders: Record<string, string> = {
+                'Content-Type': 'application/json',
+                ...(env.INTERNAL_GATEWAY_KEY && {
+                  'X-Internal-Key': env.INTERNAL_GATEWAY_KEY,
+                }),
+                ...(env.SERVICE_API_KEY_USER && {
+                  'X-Service-API-Key': env.SERVICE_API_KEY_USER,
+                }),
+              };
+
               const userRes = await fetch(
                 `${env.USER_SERVICE_URL}/api/v1/users`,
                 {
                   method: 'POST',
-                  headers: systemHeaders,
+                  headers: userHeaders,
                   body: JSON.stringify({
                     betterAuthUserId: member.userId,
                     organizationId: orgData.id,
@@ -303,6 +308,6 @@ export const createAuth = (env: Environment) => {
           },
         },
       },
-    },
+    } as any,
   });
 };
