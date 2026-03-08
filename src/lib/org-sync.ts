@@ -2,7 +2,6 @@ import type { Environment } from '../types';
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import * as schema from '../db/schema';
-import { generateSystemJWT } from './system-jwt';
 
 export async function syncOrgAndMember(
   env: Environment,
@@ -12,14 +11,14 @@ export async function syncOrgAndMember(
   memberRole: string
 ): Promise<void> {
   try {
-    const token = await generateSystemJWT(
-      env.BETTER_AUTH_SECRET,
-      'auth-service'
-    );
-    const headers = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'X-System-Token': 'true',
-      Authorization: `Bearer ${token}`,
+      ...(env.INTERNAL_GATEWAY_KEY && {
+        'X-Internal-Key': env.INTERNAL_GATEWAY_KEY,
+      }),
+      ...(env.SERVICE_API_KEY_ORGANIZATION && {
+        'X-Service-API-Key': env.SERVICE_API_KEY_ORGANIZATION,
+      }),
     };
 
     // 1. Check if org already exists in org-service
@@ -75,10 +74,19 @@ export async function syncOrgAndMember(
 
     const { email, name } = userRows[0];
 
-    // 4. Check if user already exists in user-service
+    const userHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(env.INTERNAL_GATEWAY_KEY && {
+        'X-Internal-Key': env.INTERNAL_GATEWAY_KEY,
+      }),
+      ...(env.SERVICE_API_KEY_USER && {
+        'X-Service-API-Key': env.SERVICE_API_KEY_USER,
+      }),
+    };
+
     const existingUserRes = await fetch(
       `${env.USER_SERVICE_URL}/api/v1/users/by-auth-id/${betterAuthUserId}`,
-      { headers }
+      { headers: userHeaders }
     );
     if (existingUserRes.ok) {
       console.warn(
@@ -88,12 +96,11 @@ export async function syncOrgAndMember(
       return;
     }
 
-    // 5. Create user in user-service
     const role =
       memberRole === 'owner' ? 'member' : (memberRole as 'admin' | 'member');
     const createUserRes = await fetch(`${env.USER_SERVICE_URL}/api/v1/users`, {
       method: 'POST',
-      headers,
+      headers: userHeaders,
       body: JSON.stringify({
         betterAuthUserId,
         organizationId: internalOrgId,
