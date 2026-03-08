@@ -35,7 +35,7 @@ export const verifySystemJWT = async (
       return null;
     }
 
-    return payload as SystemJWTPayload;
+    return payload as unknown as SystemJWTPayload;
   } catch {
     return null;
   }
@@ -47,7 +47,6 @@ export const createSystemHeaders = async (
 ): Promise<Record<string, string>> => {
   const token = await generateSystemJWT(secret, service);
   return {
-    'X-System-Token': 'true',
     Authorization: `Bearer ${token}`,
     'Content-Type': 'application/json',
   };

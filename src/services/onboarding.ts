@@ -1,5 +1,7 @@
 import type { DrizzleD1Database } from 'drizzle-orm/d1';
 import type * as schema from '../db/schema';
+import { and, eq } from 'drizzle-orm';
+import { invitation, user } from '../db/schema';
 import { createSystemHeaders } from '../lib/system-jwt';
 import * as onboardingRepo from '../repositories/onboarding';
 
@@ -19,10 +21,47 @@ export interface StartOnboardingResult {
   redirect?: string;
 }
 
+const findPendingInvitationForUser = async (
+  database: Database,
+  betterAuthUserId: string
+): Promise<string | null> => {
+  const userRecord = await database
+    .select({ email: user.email })
+    .from(user)
+    .where(eq(user.id, betterAuthUserId))
+    .limit(1);
+
+  if (!userRecord[0]) return null;
+
+  const pendingInvitation = await database
+    .select({ id: invitation.id })
+    .from(invitation)
+    .where(
+      and(
+        eq(invitation.email, userRecord[0].email),
+        eq(invitation.status, 'pending')
+      )
+    )
+    .limit(1);
+
+  return pendingInvitation[0]?.id ?? null;
+};
+
 export const startOnboarding = async (
   database: Database,
   betterAuthUserId: string
 ): Promise<StartOnboardingResult> => {
+  const pendingInvitationId = await findPendingInvitationForUser(
+    database,
+    betterAuthUserId
+  );
+  if (pendingInvitationId) {
+    return {
+      onboarding: null as never,
+      redirect: `/accept-invite/${pendingInvitationId}`,
+    };
+  }
+
   const existingOnboarding = await onboardingRepo.findOnboardingByUserId(
     database,
     betterAuthUserId
@@ -462,7 +501,7 @@ export const processSourceStep = async (
       onboarding.completedSteps,
       'sources'
     ),
-    sources: sources as typeof onboarding.sources,
+    sources: sources as onboardingRepo.UpdateOnboardingInput['sources'],
   });
 };
 
@@ -581,9 +620,9 @@ export const recordSourceConnection = async (
   if (!onboarding) throw new Error('Onboarding not found');
 
   const sources = parseExistingSources(onboarding.sources);
-  sources[sourceType] = { connected: true };
+  sources[sourceType] = { apiKeyId: '', connected: true };
 
   await onboardingRepo.updateOnboardingRecord(database, onboardingId, {
-    sources: sources as typeof onboarding.sources,
+    sources: sources as onboardingRepo.UpdateOnboardingInput['sources'],
   });
 };

@@ -25,4 +25,7 @@ export interface Environment {
   SERVICE_API_KEY_BILLING: string;
   SERVICE_API_KEY_NOTIFICATION: string;
   SERVICE_API_KEY_PRODUCT: string;
+  SERVICE_API_KEY_GATEWAY?: string;
+  SERVICE_API_KEY_WEB_INGEST?: string;
+  INTERNAL_GATEWAY_KEY?: string;
 }

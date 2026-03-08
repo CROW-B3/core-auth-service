@@ -1,5 +1,6 @@
 import type { Environment } from '../types';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
+
 import { drizzle } from 'drizzle-orm/d1';
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -12,6 +13,14 @@ import {
   createInvitation,
   getUserIdByEmail,
 } from '../services/invitation-service';
+
+const escapeHtml = (str: string): string =>
+  str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
 
 const INVITATION_SCHEMA = z.object({
   emails: z.array(z.string().email()),
@@ -130,7 +139,7 @@ const sendInvitationEmail = async (
         body: JSON.stringify({
           to: email,
           subject: `You've been invited to join ${organizationName}`,
-          html: `<p>${inviterName} has invited you to join <strong>${organizationName}</strong>.</p><p><a href="${inviteLink}">Accept Invitation</a></p>`,
+          html: `<p>${escapeHtml(inviterName)} has invited you to join <strong>${escapeHtml(organizationName)}</strong>.</p><p><a href="${escapeHtml(inviteLink)}">Accept Invitation</a></p>`,
         }),
       }
     );
@@ -167,7 +176,7 @@ const sendAddedEmail = async (
         body: JSON.stringify({
           to: email,
           subject: `You've been added to ${organizationName}`,
-          html: `<p>${inviterName} has added you to <strong>${organizationName}</strong>.</p><p><a href="${dashboardLink}">Go to Dashboard</a></p>`,
+          html: `<p>${escapeHtml(inviterName)} has added you to <strong>${escapeHtml(organizationName)}</strong>.</p><p><a href="${escapeHtml(dashboardLink)}">Go to Dashboard</a></p>`,
         }),
       }
     );
@@ -313,6 +322,41 @@ teamInvitationRoutes.post('/send-invites', async context => {
     );
   }
 
+  // Verify the caller is a member/owner of the organization they're inviting to.
+  // The inviterId in the body must match an active member row in the org.
+  const database = drizzle(context.env.DB, { schema });
+  const membership = await database
+    .select({ id: schema.member.id, role: schema.member.role })
+    .from(schema.member)
+    .where(
+      and(
+        eq(schema.member.userId, invitationData.inviterId),
+        eq(schema.member.organizationId, invitationData.organizationId)
+      )
+    )
+    .get();
+
+  if (!membership) {
+    return context.json(
+      {
+        error: 'Forbidden',
+        message: 'You are not a member of this organization',
+      },
+      403
+    );
+  }
+
+  // Only owners and admins can send invitations
+  if (membership.role !== 'owner' && membership.role !== 'admin') {
+    return context.json(
+      {
+        error: 'Forbidden',
+        message: 'Insufficient permissions to invite members',
+      },
+      403
+    );
+  }
+
   const notificationServiceUrl = context.env.NOTIFICATION_SERVICE_URL;
   const userServiceUrl = context.env.USER_SERVICE_URL;
   const dashboardUrl = context.env.DASHBOARD_URL;
@@ -320,8 +364,6 @@ teamInvitationRoutes.post('/send-invites', async context => {
   if (!notificationServiceUrl || !userServiceUrl || !dashboardUrl) {
     return context.json({ error: 'Required services not configured' }, 500);
   }
-
-  const database = drizzle(context.env.DB, { schema });
 
   const { results, errors } = await processAllEmails(
     database,
@@ -344,6 +386,8 @@ teamInvitationRoutes.post('/send-invites', async context => {
 
 teamInvitationRoutes.get('/list-invitations', async context => {
   const organizationId = context.req.query('organizationId');
+  const callerId =
+    context.req.header('X-User-Id') ?? context.req.header('X-Caller-Id') ?? '';
 
   if (!organizationId) {
     return context.json(
@@ -352,7 +396,34 @@ teamInvitationRoutes.get('/list-invitations', async context => {
     );
   }
 
+  // Require caller identity — fail closed if absent
+  if (!callerId) {
+    return context.json(
+      { error: 'Unauthorized', message: 'Authentication required' },
+      401
+    );
+  }
+
   const database = drizzle(context.env.DB, { schema });
+
+  // Verify caller is a member of the org before listing its invitations
+  const callerMembership = await database
+    .select({ id: schema.member.id })
+    .from(schema.member)
+    .where(
+      and(
+        eq(schema.member.userId, callerId),
+        eq(schema.member.organizationId, organizationId)
+      )
+    )
+    .get();
+
+  if (!callerMembership) {
+    return context.json(
+      { error: 'Forbidden', message: 'Access denied to this organization' },
+      403
+    );
+  }
 
   const invitations = await database
     .select({
@@ -367,6 +438,71 @@ teamInvitationRoutes.get('/list-invitations', async context => {
     .where(eq(schema.invitation.organizationId, organizationId));
 
   return context.json({ invitations });
+});
+
+teamInvitationRoutes.delete('/invitations/:invitationId', async context => {
+  const invitationId = context.req.param('invitationId');
+  const callerId =
+    context.req.header('X-User-Id') ?? context.req.header('X-Caller-Id') ?? '';
+
+  if (!callerId) {
+    return context.json(
+      { error: 'Unauthorized', message: 'Authentication required' },
+      401
+    );
+  }
+
+  const database = drizzle(context.env.DB, { schema });
+
+  // Fetch the invitation to verify it exists and get the organizationId
+  const invitation = await database
+    .select({
+      id: schema.invitation.id,
+      organizationId: schema.invitation.organizationId,
+    })
+    .from(schema.invitation)
+    .where(eq(schema.invitation.id, invitationId))
+    .get();
+
+  if (!invitation) {
+    return context.json(
+      { error: 'Not Found', message: 'Invitation not found' },
+      404
+    );
+  }
+
+  // Only owners and admins may revoke invitations
+  const callerMembership = await database
+    .select({ id: schema.member.id, role: schema.member.role })
+    .from(schema.member)
+    .where(
+      and(
+        eq(schema.member.userId, callerId),
+        eq(schema.member.organizationId, invitation.organizationId)
+      )
+    )
+    .get();
+
+  if (!callerMembership) {
+    return context.json(
+      { error: 'Forbidden', message: 'Access denied to this organization' },
+      403
+    );
+  }
+
+  if (callerMembership.role !== 'owner' && callerMembership.role !== 'admin') {
+    return context.json(
+      { error: 'Forbidden', message: 'Insufficient permissions' },
+      403
+    );
+  }
+
+  await database
+    .update(schema.invitation)
+    .set({ status: 'canceled' })
+    .where(eq(schema.invitation.id, invitationId));
+
+  return context.json({ success: true });
 });
 
 export default teamInvitationRoutes;

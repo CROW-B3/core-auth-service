@@ -18,7 +18,7 @@ app.post('/verify', async c => {
     }
 
     const auth = (await import('../lib/auth')).createAuth(c.env);
-    const verifyResult = await auth.api.verifyJWT({ body: { token } });
+    const verifyResult = await (auth.api as any).verifyJWT({ body: { token } });
 
     if (!verifyResult) {
       return c.json({ valid: false, error: 'Invalid token' }, 401);
