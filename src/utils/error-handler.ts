@@ -1,4 +1,5 @@
 import type { Context } from 'hono';
+import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import type pino from 'pino';
 import { tryCatch } from '@d3avarja/try-catch';
 
@@ -81,7 +82,10 @@ export const handleErrorResponse = (
 
   logErrorToConsole(logger, error);
 
-  return c.json(createErrorResponse(code, message), statusCode);
+  return c.json(
+    createErrorResponse(code, message),
+    statusCode as ContentfulStatusCode
+  );
 };
 
 export const createServiceError = (
@@ -94,8 +98,6 @@ export const createServiceError = (
   message,
 });
 
-export const wrapAsyncHandler = <T>(
-  handler: () => Promise<T>
-): Promise<[T, null] | [null, Error]> => {
-  return tryCatch(handler);
+export const wrapAsyncHandler = async <T>(handler: () => Promise<T>) => {
+  return tryCatch(handler());
 };
