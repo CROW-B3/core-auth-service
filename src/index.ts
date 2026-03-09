@@ -2,12 +2,14 @@ import type { Environment } from './types';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger as honoLogger } from 'hono/logger';
+import { z } from 'zod';
 import { createLogger } from './config/logger';
 import { validateEnv } from './config/validate-env';
 import { LOCAL_ORIGINS, PROD_ORIGINS } from './constants';
 import * as schema from './db/schema';
 import { createAuth } from './lib/auth';
 import { syncOrgAndMember } from './lib/org-sync';
+import { authRateLimiter } from './middleware/rate-limiter';
 import { HealthCheckRoute, ReadinessCheckRoute } from './routes/health';
 import jwtRoutes from './routes/jwt';
 import onboardingRoutes from './routes/onboarding';
@@ -44,6 +46,11 @@ async function checkDatabaseHealth(
 const app = new OpenAPIHono<{ Bindings: Environment }>();
 
 app.use(honoLogger());
+
+app.use('*', async (c, next) => {
+  await next();
+  c.header('Cache-Control', 'no-store, private');
+});
 
 app.use('*', async (c, next) => {
   try {
@@ -87,6 +94,132 @@ app.openapi(ReadinessCheckRoute, async c => {
     },
     statusCode
   );
+});
+
+// Rate limiting on auth write endpoints
+app.use('/api/v1/auth/sign-in/*', authRateLimiter());
+app.use('/api/v1/auth/sign-up/*', authRateLimiter());
+app.use('/api/v1/auth/api-key/verify', authRateLimiter());
+app.use('/api/v1/auth/jwt/system/generate', authRateLimiter());
+
+app.use('/api/v1/auth/api-key/create', async (c, next) => {
+  if (c.req.method !== 'POST') return next();
+  const bodyText = await c.req.raw
+    .clone()
+    .text()
+    .catch(() => '');
+  let body: Record<string, unknown> | null = null;
+  try {
+    body = JSON.parse(bodyText);
+  } catch {
+    body = null;
+  }
+  const nameResult = z.string().min(1).max(255).safeParse(body?.name);
+  if (!nameResult.success)
+    return c.json(
+      {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'name is required and must be 1-255 characters',
+          timestamp: new Date().toISOString(),
+        },
+      },
+      400
+    );
+  return next();
+});
+
+app.use('/api/v1/auth/sign-up/*', async (c, next) => {
+  if (c.req.method !== 'POST') return next();
+
+  const bodyText = await c.req.raw
+    .clone()
+    .text()
+    .catch(() => '');
+  let body: Record<string, unknown> | null = null;
+  try {
+    body = JSON.parse(bodyText);
+  } catch {
+    body = null;
+  }
+
+  // Block consumer email domains
+  const emailDomain = (body?.email as string | undefined)
+    ?.split('@')[1]
+    ?.toLowerCase();
+  const blockedEmailDomains = new Set([
+    'gmail.com',
+    'yahoo.com',
+    'outlook.com',
+    'hotmail.com',
+    'x.com',
+    'live.com',
+    'msn.com',
+    'icloud.com',
+    'me.com',
+    'aol.com',
+    'yandex.com',
+    'mail.com',
+  ]);
+  if (emailDomain && blockedEmailDomains.has(emailDomain)) {
+    return c.json(
+      {
+        error: {
+          code: 'DOMAIN_NOT_ALLOWED',
+          message:
+            'Consumer email domains are not accepted. Please use a business email address.',
+          timestamp: new Date().toISOString(),
+        },
+      },
+      400
+    );
+  }
+
+  // Validate email length (RFC 5321: max 254 chars total)
+  const emailResult = z.string().email().max(254).safeParse(body?.email);
+  if (!emailResult.success) {
+    return c.json(
+      {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message:
+            'email must be a valid address and no longer than 254 characters',
+          timestamp: new Date().toISOString(),
+        },
+      },
+      400
+    );
+  }
+
+  const nameResult = z.string().trim().min(1).max(255).safeParse(body?.name);
+
+  if (!nameResult.success) {
+    return c.json(
+      {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'name must be between 1 and 255 characters',
+          timestamp: new Date().toISOString(),
+        },
+      },
+      400
+    );
+  }
+
+  if (/<[^>]*>/.test(nameResult.data)) {
+    return c.json(
+      {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'name must not contain HTML tags',
+          timestamp: new Date().toISOString(),
+        },
+      },
+      400
+    );
+  }
+
+  return next();
 });
 
 app.use('/api/v1/auth/*', async (c, next) => {
@@ -182,8 +315,7 @@ app.use('/api/v1/auth/*', async (c, next) => {
             code: isJsonParseError ? 'INVALID_JSON' : 'AUTH_ERROR',
             message: isJsonParseError
               ? 'Malformed JSON in request body'
-              : errMsg,
-            timestamp: new Date().toISOString(),
+              : 'An error occurred',
           },
         },
         isJsonParseError ? 400 : 500
@@ -195,6 +327,31 @@ app.use('/api/v1/auth/*', async (c, next) => {
 });
 
 app.post('/api/v1/auth/api-key/verify', async c => {
+  // This endpoint is internal-only — requires service API key
+  const internalKey = c.req.header('X-Internal-Key');
+  if (
+    c.env.INTERNAL_GATEWAY_KEY &&
+    internalKey === c.env.INTERNAL_GATEWAY_KEY
+  ) {
+    // Gateway-forwarded request — trusted
+  } else {
+    const serviceKey = c.req.header('X-Service-API-Key');
+    const knownServiceKeys = new Set(
+      [
+        c.env.SERVICE_API_KEY_USER,
+        c.env.SERVICE_API_KEY_ORGANIZATION,
+        c.env.SERVICE_API_KEY_BILLING,
+        c.env.SERVICE_API_KEY_NOTIFICATION,
+        c.env.SERVICE_API_KEY_PRODUCT,
+        c.env.SERVICE_API_KEY_GATEWAY,
+        c.env.SERVICE_API_KEY_WEB_INGEST,
+      ].filter(Boolean)
+    );
+    if (!serviceKey || !knownServiceKeys.has(serviceKey)) {
+      return c.json({ valid: false, error: 'Unauthorized' }, 401);
+    }
+  }
+
   const body = await c.req
     .json<{ key?: string }>()
     .catch(() => ({ key: undefined }));
