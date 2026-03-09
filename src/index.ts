@@ -328,20 +328,28 @@ app.use('/api/v1/auth/*', async (c, next) => {
 
 app.post('/api/v1/auth/api-key/verify', async c => {
   // This endpoint is internal-only — requires service API key
-  const serviceKey = c.req.header('X-Service-API-Key');
-  const knownServiceKeys = new Set(
-    [
-      c.env.SERVICE_API_KEY_USER,
-      c.env.SERVICE_API_KEY_ORGANIZATION,
-      c.env.SERVICE_API_KEY_BILLING,
-      c.env.SERVICE_API_KEY_NOTIFICATION,
-      c.env.SERVICE_API_KEY_PRODUCT,
-      c.env.SERVICE_API_KEY_GATEWAY,
-      c.env.SERVICE_API_KEY_WEB_INGEST,
-    ].filter(Boolean)
-  );
-  if (!serviceKey || !knownServiceKeys.has(serviceKey)) {
-    return c.json({ valid: false, error: 'Unauthorized' }, 401);
+  const internalKey = c.req.header('X-Internal-Key');
+  if (
+    c.env.INTERNAL_GATEWAY_KEY &&
+    internalKey === c.env.INTERNAL_GATEWAY_KEY
+  ) {
+    // Gateway-forwarded request — trusted
+  } else {
+    const serviceKey = c.req.header('X-Service-API-Key');
+    const knownServiceKeys = new Set(
+      [
+        c.env.SERVICE_API_KEY_USER,
+        c.env.SERVICE_API_KEY_ORGANIZATION,
+        c.env.SERVICE_API_KEY_BILLING,
+        c.env.SERVICE_API_KEY_NOTIFICATION,
+        c.env.SERVICE_API_KEY_PRODUCT,
+        c.env.SERVICE_API_KEY_GATEWAY,
+        c.env.SERVICE_API_KEY_WEB_INGEST,
+      ].filter(Boolean)
+    );
+    if (!serviceKey || !knownServiceKeys.has(serviceKey)) {
+      return c.json({ valid: false, error: 'Unauthorized' }, 401);
+    }
   }
 
   const body = await c.req
