@@ -1,4 +1,5 @@
 import type { Context } from 'hono';
+import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import type { Environment } from '../types';
 import { zValidator } from '@hono/zod-validator';
 import { drizzle } from 'drizzle-orm/d1';
@@ -76,7 +77,9 @@ const checkoutStepSchema = z.object({
 
 const handleStartOnboarding = async (context: Context) => {
   const database = drizzle(context.env.DB, { schema });
-  const { betterAuthUserId } = context.req.valid('json');
+  const { betterAuthUserId } = (await context.req.json()) as {
+    betterAuthUserId: string;
+  };
 
   const result = await onboardingService.startOnboarding(
     database,
@@ -126,7 +129,11 @@ onboardingRoutes.get('/:id', handleGetOnboardingById);
 const handleOrganizationStep = async (context: Context) => {
   const database = drizzle(context.env.DB, { schema });
   const onboardingId = context.req.param('id');
-  const body = context.req.valid('json');
+  const body = (await context.req.json()) as {
+    betterAuthOrgId: string;
+    organizationName: string;
+    betterAuthUserId: string;
+  };
 
   const onboarding = await onboardingService.processOrganizationStep(
     database,
@@ -152,7 +159,11 @@ onboardingRoutes.patch(
 const handlePlanStep = async (context: Context) => {
   const database = drizzle(context.env.DB, { schema });
   const onboardingId = context.req.param('id');
-  const body = context.req.valid('json');
+  const body = (await context.req.json()) as {
+    modules: { web: boolean; cctv: boolean; social: boolean };
+    payAsYouGo: boolean;
+    billingPeriod: 'monthly' | 'annual';
+  };
 
   const onboarding = await onboardingService.processPlanStep(
     database,
@@ -174,7 +185,7 @@ onboardingRoutes.patch(
 const handleCheckoutStep = async (context: Context) => {
   const database = drizzle(context.env.DB, { schema });
   const onboardingId = context.req.param('id');
-  const body = context.req.valid('json');
+  const body = (await context.req.json()) as { stripeSessionId: string };
 
   const onboarding = await onboardingService.processCheckoutStep(
     database,
@@ -194,7 +205,11 @@ onboardingRoutes.patch(
 const handleProductsStep = async (context: Context) => {
   const database = drizzle(context.env.DB, { schema });
   const onboardingId = context.req.param('id');
-  const body = context.req.valid('json');
+  const body = (await context.req.json()) as {
+    sourceType: 'csv' | 'json' | 'url';
+    sourceValue: string;
+    jobId?: string;
+  };
 
   const onboarding = await onboardingService.processProductsStep(
     database,
@@ -213,7 +228,10 @@ onboardingRoutes.patch(
 const handleSourceStep = async (context: Context) => {
   const database = drizzle(context.env.DB, { schema });
   const onboardingId = context.req.param('id');
-  const body = context.req.valid('json');
+  const body = (await context.req.json()) as {
+    sourceType: 'web' | 'cctv' | 'social';
+    apiKeyId: string;
+  };
 
   const onboarding = await onboardingService.processSourceStep(
     database,
@@ -277,7 +295,7 @@ const createCheckoutSession = async (
 
   if (!checkoutResponse.ok) {
     const errorBody = await checkoutResponse.text();
-    throw new HTTPException(checkoutResponse.status, {
+    throw new HTTPException(checkoutResponse.status as ContentfulStatusCode, {
       message: `Failed to create checkout session: ${errorBody}`,
     });
   }
@@ -286,7 +304,11 @@ const createCheckoutSession = async (
 };
 
 const handleCreateCheckout = async (context: Context) => {
-  const body = context.req.valid('json');
+  const body = (await context.req.json()) as {
+    billingBuilderId: string;
+    successUrl: string;
+    cancelUrl: string;
+  };
   const headers = await createSystemHeaders(
     context.env.BETTER_AUTH_SECRET,
     'auth-service'
