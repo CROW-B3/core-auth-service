@@ -11,7 +11,14 @@
   },
   "vars": {
     "ENVIRONMENT": "prod",
-    "BETTER_AUTH_URL": "https://internal.auth-api.crowai.dev",
+    "BETTER_AUTH_URL": "https://api.crowai.dev",
+    "PRODUCT_SERVICE_URL": "https://internal.products.crowai.dev",
+    "AUTH_CLIENT_URL": "https://auth.crowai.dev",
+    "NOTIFICATION_SERVICE_URL": "https://internal.notifications.crowai.dev",
+    "USER_SERVICE_URL": "https://internal.users.crowai.dev",
+    "BILLING_SERVICE_URL": "https://internal.billing.crowai.dev",
+    "ORGANIZATION_SERVICE_URL": "https://internal.orgs.crowai.dev",
+    "DASHBOARD_URL": "https://app.crowai.dev",
   },
   "d1_databases": [
     {
@@ -24,11 +31,29 @@
   "routes": [
     { "pattern": "internal.auth-api.crowai.dev", "custom_domain": true },
   ],
+  "queues": {
+    "producers": [
+      {
+        "queue": "crow-product-crawl-queue",
+        "binding": "PRODUCT_CRAWL_QUEUE"
+      }
+    ]
+  },
   "env": {
     "dev": {
       "vars": {
         "ENVIRONMENT": "dev",
-        "BETTER_AUTH_URL": "https://dev.internal.auth-api.crowai.dev",
+        "BETTER_AUTH_URL": "https://dev.api.crowai.dev",
+        "PRODUCT_SERVICE_URL": "https://dev.internal.products.crowai.dev",
+        "AUTH_CLIENT_URL": "https://dev.auth.crowai.dev",
+        "NOTIFICATION_SERVICE_URL": "https://dev.internal.notifications.crowai.dev",
+        "USER_SERVICE_URL": "https://dev.internal.users.crowai.dev",
+        "BILLING_SERVICE_URL": "https://dev.internal.billing.crowai.dev",
+        "ORGANIZATION_SERVICE_URL": "https://dev.internal.orgs.crowai.dev",
+        "DASHBOARD_URL": "https://dev.app.crowai.dev",
+        // BETTER_AUTH_SECRET: set via `wrangler secret put BETTER_AUTH_SECRET --env dev`
+        // GOOGLE_CLIENT_ID: set via `wrangler secret put GOOGLE_CLIENT_ID --env dev`
+        // GOOGLE_CLIENT_SECRET: set via `wrangler secret put GOOGLE_CLIENT_SECRET --env dev`
       },
       "routes": [
         {
@@ -40,15 +65,31 @@
         {
           "binding": "DB",
           "database_name": "crow-core-auth-service-db-dev",
-          "database_id": "99c90045-cfbb-4da8-9a82-f3372a37dda3",
+          "database_id": "6468e4cb-e23d-4425-9961-86ae10289e1c",
           "migrations_dir": "drizzle/migrations",
         },
       ],
+      "queues": {
+        "producers": [
+          {
+            "queue": "crow-product-crawl-queue-dev",
+            "binding": "PRODUCT_CRAWL_QUEUE"
+          }
+        ]
+      },
     },
     "local": {
       "vars": {
         "ENVIRONMENT": "local",
         "BETTER_AUTH_URL": "http://localhost:8001",
+        "PRODUCT_SERVICE_URL": "http://localhost:8003",
+        "AUTH_CLIENT_URL": "http://localhost:3001",
+        "NOTIFICATION_SERVICE_URL": "http://localhost:8006",
+        "USER_SERVICE_URL": "http://localhost:8002",
+        "BILLING_SERVICE_URL": "http://localhost:8012",
+        "ORGANIZATION_SERVICE_URL": "http://localhost:8004",
+        "DASHBOARD_URL": "http://localhost:3002",
+        // BETTER_AUTH_SECRET: set via `wrangler secret put BETTER_AUTH_SECRET --env local`
       },
       "d1_databases": [
         {
@@ -58,6 +99,14 @@
           "migrations_dir": "drizzle/migrations",
         },
       ],
+      "queues": {
+        "producers": [
+          {
+            "queue": "crow-product-crawl-queue-local",
+            "binding": "PRODUCT_CRAWL_QUEUE"
+          }
+        ]
+      },
     },
   },
 }
