@@ -3,7 +3,7 @@
   "description": "Hono-powered Cloudflare Worker that routes requests to a serverless Container backend (Workers Containers) via @cloudflare/containers.",
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev --env local --port 8001",
+    "dev": "wrangler dev --env local --port 8001 --inspector-port 9230 --persist-to ../.wrangler/state",
     "dev:docker": "docker compose up --build",
     "deploy": "wrangler deploy --minify",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
@@ -21,25 +21,28 @@
     "bun:build": "bun build src/index.ts --compile --outfile server"
   },
   "dependencies": {
-    "@antfu/eslint-config": "^6.7.3",
+    "@antfu/eslint-config": "^7.4.3",
     "@hono/swagger-ui": "^0.5.3",
-    "@hono/zod-openapi": "^1.2.0",
-    "better-auth": "^1.4.10",
+    "@hono/zod-openapi": "^1.2.2",
+    "@hono/zod-validator": "^0.7.6",
+    "better-auth": "^1.4.18",
     "drizzle-orm": "^0.45.1",
-    "hono": "^4.11.3",
+    "hono": "^4.11.9",
     "jiti": "^2.6.1",
     "loglevel": "^1.9.2",
-    "zod": "^4.3.5"
+    "pino": "^10.3.1",
+    "pino-pretty": "^13.1.3",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@commitlint/config-conventional": "^20.3.1",
+    "@commitlint/config-conventional": "^20.4.1",
     "@deox/drizzle-d1-utils": "^0.0.1",
-    "better-sqlite3": "^12.5.0",
-    "drizzle-kit": "^0.31.8",
+    "better-sqlite3": "^12.6.2",
+    "drizzle-kit": "^0.31.9",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
-    "prettier": "^3.7.4",
-    "wrangler": "^4.58.0"
+    "prettier": "^3.8.1",
+    "wrangler": "^4.65.0"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
