@@ -1,5 +1,6 @@
 import type { Environment } from './types';
-import { Hono } from 'hono';
+import { OpenAPIHono } from '@hono/zod-openapi';
+import { drizzle } from 'drizzle-orm/d1';
 import { cors } from 'hono/cors';
 import { logger as honoLogger } from 'hono/logger';
 import { z } from 'zod';
@@ -143,36 +144,37 @@ app.use('/api/v1/auth/sign-up/*', async (c, next) => {
     body = null;
   }
 
-  // Block consumer email domains
-  const emailDomain = (body?.email as string | undefined)
-    ?.split('@')[1]
-    ?.toLowerCase();
-  const blockedEmailDomains = new Set([
-    'gmail.com',
-    'yahoo.com',
-    'outlook.com',
-    'hotmail.com',
-    'x.com',
-    'live.com',
-    'msn.com',
-    'icloud.com',
-    'me.com',
-    'aol.com',
-    'yandex.com',
-    'mail.com',
-  ]);
-  if (emailDomain && blockedEmailDomains.has(emailDomain)) {
-    return c.json(
-      {
-        error: {
-          code: 'DOMAIN_NOT_ALLOWED',
-          message:
-            'Consumer email domains are not accepted. Please use a business email address.',
-          timestamp: new Date().toISOString(),
+  if (c.env.ENVIRONMENT === 'prod') {
+    const emailDomain = (body?.email as string | undefined)
+      ?.split('@')[1]
+      ?.toLowerCase();
+    const blockedEmailDomains = new Set([
+      'gmail.com',
+      'yahoo.com',
+      'outlook.com',
+      'hotmail.com',
+      'x.com',
+      'live.com',
+      'msn.com',
+      'icloud.com',
+      'me.com',
+      'aol.com',
+      'yandex.com',
+      'mail.com',
+    ]);
+    if (emailDomain && blockedEmailDomains.has(emailDomain)) {
+      return c.json(
+        {
+          error: {
+            code: 'DOMAIN_NOT_ALLOWED',
+            message:
+              'Consumer email domains are not accepted. Please use a business email address.',
+            timestamp: new Date().toISOString(),
+          },
         },
-      },
-      400
-    );
+        400
+      );
+    }
   }
 
   // Validate email length (RFC 5321: max 254 chars total)
