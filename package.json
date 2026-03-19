@@ -24,10 +24,11 @@
   },
   "dependencies": {
     "@antfu/eslint-config": "^7.4.3",
+    "@d3avarja/try-catch": "^0.0.1",
     "@hono/swagger-ui": "^0.5.3",
     "@hono/zod-openapi": "^1.2.2",
     "@hono/zod-validator": "^0.7.6",
-    "better-auth": "^1.4.18",
+    "better-auth": "1.4.18",
     "drizzle-orm": "^0.45.1",
     "hono": "^4.11.9",
     "jiti": "^2.6.1",
