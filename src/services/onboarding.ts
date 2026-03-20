@@ -91,6 +91,82 @@ export const startOnboarding = async (
   return { onboarding: onboarding! };
 };
 
+export interface CompleteProfileStepInput {
+  name: string;
+  phone?: string;
+  jobTitle?: string;
+  betterAuthUserId: string;
+}
+
+export const processCompleteProfileStep = async (
+  database: Database,
+  onboardingId: string,
+  input: CompleteProfileStepInput,
+  env: {
+    BETTER_AUTH_SECRET: string;
+    USER_SERVICE_URL: string;
+    INTERNAL_GATEWAY_KEY?: string;
+    SERVICE_API_KEY_USER?: string;
+  }
+) => {
+  const onboarding = await onboardingRepo.findOnboardingById(
+    database,
+    onboardingId
+  );
+  if (!onboarding) throw new Error('Onboarding not found');
+
+  const systemHeaders = await createSystemHeaders(
+    env.BETTER_AUTH_SECRET,
+    'auth-service'
+  );
+  if (env.INTERNAL_GATEWAY_KEY) {
+    systemHeaders['X-Internal-Key'] = env.INTERNAL_GATEWAY_KEY;
+  }
+  const userHeaders: Record<string, string> = {
+    ...systemHeaders,
+    ...(env.SERVICE_API_KEY_USER && {
+      'X-Service-API-Key': env.SERVICE_API_KEY_USER,
+    }),
+  };
+
+  // Update the user name/profile in the better-auth user table via the user service.
+  // We PATCH the user record so the JWT definePayload and other services see fresh data.
+  const patchResponse = await fetch(
+    `${env.USER_SERVICE_URL}/api/v1/users/by-auth-id/${input.betterAuthUserId}`,
+    {
+      method: 'PATCH',
+      headers: userHeaders,
+      body: JSON.stringify({
+        name: input.name,
+        ...(input.phone !== undefined && { phone: input.phone }),
+        ...(input.jobTitle !== undefined && { jobTitle: input.jobTitle }),
+      }),
+    }
+  );
+
+  if (!patchResponse.ok) {
+    const errorBody = await patchResponse.text();
+    console.error(
+      '[onboarding:complete-profile] Failed to update user profile:',
+      {
+        status: patchResponse.status,
+        body: errorBody,
+      }
+    );
+    // Non-fatal — profile update failure should not block onboarding progression.
+    // The user can update their profile later.
+  }
+
+  // Advance to step 2 (organization).
+  return onboardingRepo.updateOnboardingRecord(database, onboardingId, {
+    currentStep: 2,
+    completedSteps: appendStepToCompletedSteps(
+      onboarding.completedSteps,
+      'complete-profile'
+    ),
+  });
+};
+
 export interface OrganizationStepInput {
   betterAuthOrgId: string;
   organizationName: string;
@@ -431,7 +507,16 @@ const updateBillingBuilderWithPlan = async (
   );
 
   if (!updateResponse.ok) {
-    throw new Error('Failed to update billing builder');
+    const errorBody = await updateResponse.text();
+    console.error('Billing Service PATCH billing-builder error:', {
+      status: updateResponse.status,
+      statusText: updateResponse.statusText,
+      body: errorBody,
+      billingBuilderId,
+    });
+    throw new Error(
+      `Failed to update billing builder: ${updateResponse.status} ${errorBody}`
+    );
   }
 };
 
@@ -454,6 +539,9 @@ export const processPlanStep = async (
   });
   const headers = await createSystemHeaders(secret, 'auth-service');
   if (internalGatewayKey) headers['X-Internal-Key'] = internalGatewayKey;
+  // Billing service JWT middleware requires X-System-Token to select the HS256
+  // verification path for service-to-service calls using a system JWT.
+  headers['X-System-Token'] = '1';
 
   try {
     await updateBillingBuilderWithPlan(
@@ -471,8 +559,9 @@ export const processPlanStep = async (
     throw error;
   }
 
+  // Advance to step 4 (checkout) after plan/modules is completed.
   return onboardingRepo.updateOnboardingRecord(database, onboardingId, {
-    currentStep: 3,
+    currentStep: 4,
     completedSteps: appendStepToCompletedSteps(
       onboarding.completedSteps,
       'modules'
