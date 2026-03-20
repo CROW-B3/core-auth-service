@@ -19,6 +19,8 @@ import teamInvitationRoutes from './routes/team-invitations';
 import { transformBetterAuthResponse } from './utils/auth-validation';
 import { handleErrorResponse } from './utils/error-handler';
 
+const HTML_TAG_REGEX = /<[^>]*>/;
+
 function getAllowedOrigins(env: Environment): string[] {
   if (env.ENVIRONMENT === 'local') {
     return [...PROD_ORIGINS, ...LOCAL_ORIGINS];
@@ -208,7 +210,7 @@ app.use('/api/v1/auth/sign-up/*', async (c, next) => {
     );
   }
 
-  if (/<[^>]*>/.test(nameResult.data)) {
+  if (HTML_TAG_REGEX.test(nameResult.data)) {
     return c.json(
       {
         error: {
@@ -256,6 +258,8 @@ app.use('/api/v1/auth/*', async (c, next) => {
 
   const isBetterAuthRoute =
     !customRoutes.includes(path) &&
+    !path.includes('/onboarding') &&
+    !path.includes('/team-invitations') &&
     betterAuthPaths.some(authPath => path.includes(authPath));
 
   if (isBetterAuthRoute) {

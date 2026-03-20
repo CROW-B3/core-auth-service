@@ -110,17 +110,26 @@ const fetchUserFromBetterAuth = async (database: Database, userId: string) => {
 };
 
 const createOrganizationViaService = async (
-  env: { ORGANIZATION_SERVICE_URL?: string },
+  env: {
+    ORGANIZATION_SERVICE_URL?: string;
+    SERVICE_API_KEY_ORGANIZATION?: string;
+  },
   systemHeaders: Record<string, string>,
   data: { betterAuthOrgId: string; organizationName: string }
 ) => {
   const organizationServiceUrl =
     env.ORGANIZATION_SERVICE_URL || 'http://localhost:8004';
+  const orgHeaders: Record<string, string> = {
+    ...systemHeaders,
+    ...(env.SERVICE_API_KEY_ORGANIZATION && {
+      'X-Service-API-Key': env.SERVICE_API_KEY_ORGANIZATION,
+    }),
+  };
   const organizationResponse = await fetch(
     `${organizationServiceUrl}/api/v1/organizations`,
     {
       method: 'POST',
-      headers: systemHeaders,
+      headers: orgHeaders,
       body: JSON.stringify({
         betterAuthOrgId: data.betterAuthOrgId,
         name: data.organizationName,
@@ -194,21 +203,27 @@ const createNewUser = async (
 };
 
 const ensureUserExistsInService = async (
-  env: { USER_SERVICE_URL: string },
+  env: { USER_SERVICE_URL: string; SERVICE_API_KEY_USER?: string },
   systemHeaders: Record<string, string>,
   authUser: { id: string; email: string; name: string },
   organization: { id: string },
   onboardingId: string
 ) => {
+  const userHeaders: Record<string, string> = {
+    ...systemHeaders,
+    ...(env.SERVICE_API_KEY_USER && {
+      'X-Service-API-Key': env.SERVICE_API_KEY_USER,
+    }),
+  };
   const existingUser = await fetchExistingUser(
     env.USER_SERVICE_URL,
-    systemHeaders,
+    userHeaders,
     authUser.id
   );
   if (existingUser) return existingUser;
   return createNewUser(
     env.USER_SERVICE_URL,
-    systemHeaders,
+    userHeaders,
     authUser,
     organization.id,
     onboardingId
@@ -216,16 +231,32 @@ const ensureUserExistsInService = async (
 };
 
 const createBillingBuilderForOrganization = async (
-  env: { BILLING_SERVICE_URL: string },
+  env: {
+    BILLING_SERVICE_URL: string;
+    SERVICE_API_KEY_BILLING?: string;
+    INTERNAL_GATEWAY_KEY?: string;
+  },
   systemHeaders: Record<string, string>,
   organization: { id: string },
   onboardingId: string
 ) => {
+  const billingHeaders: Record<string, string> = {
+    ...systemHeaders,
+    // Billing service requires X-Internal-Key + X-System-Token for HS256 JWT path
+    ...(env.INTERNAL_GATEWAY_KEY && {
+      'X-Internal-Key': env.INTERNAL_GATEWAY_KEY,
+    }),
+    'X-System-Token': '1',
+    'X-Organization-Id': organization.id,
+    ...(env.SERVICE_API_KEY_BILLING && {
+      'X-Service-API-Key': env.SERVICE_API_KEY_BILLING,
+    }),
+  };
   const billingResponse = await fetch(
     `${env.BILLING_SERVICE_URL}/api/v1/billing/billing-builders`,
     {
       method: 'POST',
-      headers: systemHeaders,
+      headers: billingHeaders,
       body: JSON.stringify({
         organizationId: organization.id,
         onboardingId,
@@ -273,12 +304,22 @@ export const processOrganizationStep = async (
     USER_SERVICE_URL: string;
     ORGANIZATION_SERVICE_URL?: string;
     BILLING_SERVICE_URL: string;
+    INTERNAL_GATEWAY_KEY?: string;
+    SERVICE_API_KEY_ORGANIZATION?: string;
+    SERVICE_API_KEY_USER?: string;
+    SERVICE_API_KEY_BILLING?: string;
   }
 ) => {
   const systemHeaders = await createSystemHeaders(
     env.BETTER_AUTH_SECRET,
     'auth-service'
   );
+
+  // All downstream microservices require X-Internal-Key for service-to-service
+  // authentication. Without this the calls return 401, causing a 500 here.
+  if (env.INTERNAL_GATEWAY_KEY) {
+    systemHeaders['X-Internal-Key'] = env.INTERNAL_GATEWAY_KEY;
+  }
   console.warn('[onboarding:org] Starting organization step', {
     onboardingId,
     orgServiceUrl: env.ORGANIZATION_SERVICE_URL,
@@ -399,7 +440,8 @@ export const processPlanStep = async (
   onboardingId: string,
   input: PlanStepInput,
   billingServiceUrl: string,
-  secret: string
+  secret: string,
+  internalGatewayKey?: string
 ) => {
   const onboarding = await validateOnboardingForPlanStep(
     database,
@@ -411,6 +453,7 @@ export const processPlanStep = async (
     billingServiceUrl,
   });
   const headers = await createSystemHeaders(secret, 'auth-service');
+  if (internalGatewayKey) headers['X-Internal-Key'] = internalGatewayKey;
 
   try {
     await updateBillingBuilderWithPlan(
