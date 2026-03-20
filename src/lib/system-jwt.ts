@@ -49,8 +49,6 @@ export const createSystemHeaders = async (
   return {
     Authorization: `Bearer ${token}`,
     'Content-Type': 'application/json',
-    // X-System-Token signals downstream services to validate the Authorization
-    // header as an HS256 system JWT rather than an RS256 user JWT via JWKS.
     'X-System-Token': 'true',
   };
 };

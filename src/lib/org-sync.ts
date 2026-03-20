@@ -21,7 +21,6 @@ export async function syncOrgAndMember(
       }),
     };
 
-    // 1. Check if org already exists in org-service
     const existingRes = await fetch(
       `${env.ORGANIZATION_SERVICE_URL}/api/v1/organizations/by-auth-id/${betterAuthOrgId}`,
       { headers }
@@ -33,7 +32,6 @@ export async function syncOrgAndMember(
       const existing = (await existingRes.json()) as { id: string };
       internalOrgId = existing.id;
     } else {
-      // 2. Create org in org-service
       const createOrgRes = await fetch(
         `${env.ORGANIZATION_SERVICE_URL}/api/v1/organizations`,
         {
@@ -59,7 +57,6 @@ export async function syncOrgAndMember(
       return;
     }
 
-    // 3. Get user details from better-auth DB
     const db = drizzle(env.DB, { schema });
     const userRows = await db
       .select({ email: schema.user.email, name: schema.user.name })
