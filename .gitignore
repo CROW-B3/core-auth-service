@@ -31,3 +31,8 @@ lerna-debug.log*
 
 # misc
 .DS_Store
+
+# Playwright CLI artifacts
+.playwright-cli/
+.playwright/
+test-results/
