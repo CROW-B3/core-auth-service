@@ -44,6 +44,13 @@ const startOnboardingSchema = z.object({
   betterAuthUserId: z.string(),
 });
 
+const completeProfileStepSchema = z.object({
+  name: z.string().min(1).max(255),
+  phone: z.string().optional(),
+  jobTitle: z.string().optional(),
+  betterAuthUserId: z.string(),
+});
+
 const organizationStepSchema = z.object({
   betterAuthOrgId: z.string(),
   organizationName: z.string(),
@@ -126,6 +133,37 @@ onboardingRoutes.get('/user/:userId', handleGetOnboardingByUserId);
 
 onboardingRoutes.get('/:id', handleGetOnboardingById);
 
+const handleCompleteProfileStep = async (context: Context) => {
+  const database = drizzle(context.env.DB, { schema });
+  const onboardingId = context.req.param('id');
+  const body = (await context.req.json()) as {
+    name: string;
+    phone?: string;
+    jobTitle?: string;
+    betterAuthUserId: string;
+  };
+
+  const onboarding = await onboardingService.processCompleteProfileStep(
+    database,
+    onboardingId,
+    body,
+    {
+      BETTER_AUTH_SECRET: context.env.BETTER_AUTH_SECRET,
+      USER_SERVICE_URL: context.env.USER_SERVICE_URL,
+      INTERNAL_GATEWAY_KEY: context.env.INTERNAL_GATEWAY_KEY,
+      SERVICE_API_KEY_USER: context.env.SERVICE_API_KEY_USER,
+    }
+  );
+
+  return context.json({ onboarding });
+};
+
+onboardingRoutes.patch(
+  '/:id/step/complete-profile',
+  zValidator('json', completeProfileStepSchema),
+  handleCompleteProfileStep
+);
+
 const handleOrganizationStep = async (context: Context) => {
   const database = drizzle(context.env.DB, { schema });
   const onboardingId = context.req.param('id');
@@ -144,6 +182,10 @@ const handleOrganizationStep = async (context: Context) => {
       USER_SERVICE_URL: context.env.USER_SERVICE_URL,
       ORGANIZATION_SERVICE_URL: context.env.ORGANIZATION_SERVICE_URL,
       BILLING_SERVICE_URL: context.env.BILLING_SERVICE_URL,
+      INTERNAL_GATEWAY_KEY: context.env.INTERNAL_GATEWAY_KEY,
+      SERVICE_API_KEY_ORGANIZATION: context.env.SERVICE_API_KEY_ORGANIZATION,
+      SERVICE_API_KEY_USER: context.env.SERVICE_API_KEY_USER,
+      SERVICE_API_KEY_BILLING: context.env.SERVICE_API_KEY_BILLING,
     }
   );
 
@@ -170,7 +212,8 @@ const handlePlanStep = async (context: Context) => {
     onboardingId,
     body,
     context.env.BILLING_SERVICE_URL,
-    context.env.BETTER_AUTH_SECRET
+    context.env.BETTER_AUTH_SECRET,
+    context.env.INTERNAL_GATEWAY_KEY
   );
 
   return context.json({ onboarding });
@@ -275,6 +318,8 @@ onboardingRoutes.post('/:id/complete', handleCompleteOnboarding);
 
 const createCheckoutSchema = z.object({
   billingBuilderId: z.string(),
+  organizationId: z.string(),
+  organizationName: z.string().optional(),
   successUrl: z.string(),
   cancelUrl: z.string(),
 });
@@ -282,7 +327,12 @@ const createCheckoutSchema = z.object({
 const createCheckoutSession = async (
   billingServiceUrl: string,
   headers: Record<string, string>,
-  body: { billingBuilderId: string; successUrl: string; cancelUrl: string }
+  body: {
+    billingBuilderId: string;
+    successUrl: string;
+    cancelUrl: string;
+    organizationName?: string;
+  }
 ) => {
   const checkoutResponse = await fetch(
     `${billingServiceUrl}/api/v1/billing/checkout/session`,
@@ -306,6 +356,8 @@ const createCheckoutSession = async (
 const handleCreateCheckout = async (context: Context) => {
   const body = (await context.req.json()) as {
     billingBuilderId: string;
+    organizationId: string;
+    organizationName?: string;
     successUrl: string;
     cancelUrl: string;
   };
@@ -313,10 +365,19 @@ const handleCreateCheckout = async (context: Context) => {
     context.env.BETTER_AUTH_SECRET,
     'auth-service'
   );
+  if (context.env.INTERNAL_GATEWAY_KEY)
+    headers['X-Internal-Key'] = context.env.INTERNAL_GATEWAY_KEY;
+  // Billing service JWT middleware requires X-System-Token to use the
+  // HS256 verification path for system-to-service calls.
+  headers['X-System-Token'] = '1';
+  // The checkout session endpoint always requires X-Organization-Id regardless
+  // of system context — pass the internal organization UUID here.
+  headers['X-Organization-Id'] = body.organizationId;
+  const { organizationId: _orgId, ...checkoutBody } = body;
   const checkoutData = await createCheckoutSession(
     context.env.BILLING_SERVICE_URL,
     headers,
-    body
+    checkoutBody
   );
   return context.json(checkoutData);
 };
