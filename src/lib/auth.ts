@@ -94,9 +94,6 @@ export const createAuth = (env: Environment) => {
           keyPairConfig: { alg: 'RS256' },
         },
         jwt: {
-          // Embed the CROW internal organizationId in the JWT so downstream
-          // services (billing, user, etc.) can authorize requests without
-          // needing to call the user service on every request.
           definePayload: async ({ user, session }) => {
             let organizationId: string | undefined;
             try {
@@ -117,9 +114,7 @@ export const createAuth = (env: Environment) => {
                 const data = (await res.json()) as { organizationId?: string };
                 organizationId = data.organizationId;
               }
-            } catch {
-              // Non-fatal: proceed without the claim
-            }
+            } catch {}
             return {
               ...user,
               organizationId,
@@ -203,7 +198,6 @@ export const createAuth = (env: Environment) => {
         create: {
           after: async (member: any) => {
             try {
-              // Fetch user details from better-auth's own user table in the same D1 DB
               const userResults = await db
                 .select({ email: schema.user.email, name: schema.user.name })
                 .from(schema.user)
@@ -299,7 +293,6 @@ export const createAuth = (env: Environment) => {
                 }
               );
             } catch (err) {
-              // Non-fatal: log but do not throw so invitation acceptance is not blocked
               console.error(
                 '[databaseHooks] member.create: unexpected error during sync',
                 err
