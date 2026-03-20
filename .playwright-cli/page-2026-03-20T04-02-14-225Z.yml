@@ -1,0 +1,44 @@
+- generic [ref=e1]:
+    - status [ref=e66]: Account created successfully!
+    - generic [ref=e2]:
+        - navigation [ref=e3]:
+            - link "CROW Logo CROW" [ref=e5] [cursor=pointer]:
+                - /url: /
+                - generic [ref=e6]:
+                    - img "CROW Logo" [ref=e7]
+                    - generic [ref=e8]: CROW
+            - generic [ref=e10]:
+                - text: Already have an account?
+                - link "Log in" [ref=e11] [cursor=pointer]:
+                    - /url: /login
+        - main [ref=e12]:
+            - generic [ref=e13]:
+                - generic [ref=e14]:
+                    - generic [ref=e15]: Sign Up
+                    - heading "Create your CROW account." [level=1] [ref=e16]
+                    - paragraph [ref=e17]: Start unifying Web, CCTV, and Social signals.
+                - generic [ref=e18]:
+                    - generic [ref=e19]:
+                        - textbox "Full name" [ref=e23]: Test Flow Fix
+                        - textbox "Work email" [ref=e27]: flow-fix-1773979323@testmail.com
+                        - textbox "Create password" [ref=e31]: SecurePass123!
+                    - generic [ref=e33]:
+                        - checkbox "I agree to the Terms and Privacy Policy." [checked] [ref=e35] [cursor=pointer]
+                        - generic [ref=e36] [cursor=pointer]:
+                            - text: I agree to the
+                            - link "Terms" [ref=e37]:
+                                - /url: /terms
+                            - text: and
+                            - link "Privacy Policy" [ref=e38]:
+                                - /url: /privacy
+                            - text: .
+                    - button "Setting up" [active] [ref=e67]:
+                        - text: Setting up
+                        - img [ref=e68]
+                - generic [ref=e44]:
+                    - generic [ref=e48]: Or
+                    - button "Continue with Google" [ref=e51]:
+                        - generic [ref=e52]:
+                            - img [ref=e53]
+                            - text: Continue with Google
+    - alert [ref=e59]

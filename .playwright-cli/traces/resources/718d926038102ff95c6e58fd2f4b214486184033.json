@@ -1,0 +1,17 @@
+{
+  "onboarding": {
+    "id": "1b86c315-ff03-4975-88eb-b54b46aaa50c",
+    "betterAuthUserId": "zzmQS9ILmF2esKLd2MbmI29QAi8EwdwB",
+    "betterAuthOrgId": "yTZKweLc2TxKlPgdN6AWh5hyyFC79CpZ",
+    "orgBuilderId": null,
+    "userBuilderId": null,
+    "billingBuilderId": "8854f4c5-385c-4bf2-ad2b-78e2650cb4bc",
+    "currentStep": 2,
+    "completedSteps": "[\"organization\"]",
+    "productSource": null,
+    "sources": "{}",
+    "status": "in_progress",
+    "createdAt": "2026-03-20T04:22:41.000Z",
+    "completedAt": null
+  }
+}

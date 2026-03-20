@@ -1,0 +1,147 @@
+- generic [active] [ref=e1]:
+    - status [ref=e42]: Organization created successfully!
+    - alert [ref=e35]
+    - generic [ref=e43]:
+        - navigation [ref=e44]:
+            - link "CROW Logo CROW" [ref=e46] [cursor=pointer]:
+                - /url: /
+                - generic [ref=e47]:
+                    - img "CROW Logo" [ref=e48]
+                    - generic [ref=e49]: CROW
+            - generic [ref=e51]:
+                - text: Already have an account?
+                - link "Log in" [ref=e52] [cursor=pointer]:
+                    - /url: /login
+        - main [ref=e53]:
+            - generic [ref=e54]:
+                - generic [ref=e55]: Plan
+                - heading "Select a plan." [level=1] [ref=e56]
+                - paragraph [ref=e57]: Plans scale with seats, connected sources, monthly events, and retention. You can change this later.
+            - generic [ref=e59]:
+                - generic [ref=e60]: Billing
+                - radiogroup "Billing" [ref=e61]:
+                    - radio "Monthly" [ref=e62]
+                    - radio "Annual" [checked] [ref=e63]
+                - generic [ref=e64]: Annual includes a discount.
+            - generic [ref=e65]:
+                - generic [ref=e68] [cursor=pointer]:
+                    - checkbox [ref=e72]
+                    - generic [ref=e73]:
+                        - heading "Web" [level=3] [ref=e74]
+                        - paragraph [ref=e75]: Digital journey + interaction capture.
+                    - generic [ref=e77]:
+                        - generic [ref=e78]: $50
+                        - generic [ref=e79]: /mo
+                    - generic [ref=e80]:
+                        - heading "INCLUDED LIMITS" [level=4] [ref=e81]
+                        - generic [ref=e82]:
+                            - generic [ref=e83]:
+                                - img [ref=e85]
+                                - generic [ref=e88]: 1M interactions/mo
+                            - generic [ref=e89]:
+                                - img [ref=e91]
+                                - generic [ref=e93]: 1M patterns/mo
+                            - generic [ref=e94]:
+                                - img [ref=e96]
+                                - generic [ref=e99]: SDK tracking
+                            - generic [ref=e100]:
+                                - img [ref=e102]
+                                - generic [ref=e105]: Funnels & drop-off
+                            - generic [ref=e106]:
+                                - img [ref=e108]
+                                - generic [ref=e111]: Session evidence
+                            - generic [ref=e112]:
+                                - img [ref=e114]
+                                - generic [ref=e117]: Event API
+                - generic [ref=e120] [cursor=pointer]:
+                    - checkbox [ref=e124]
+                    - generic [ref=e125]:
+                        - heading "CCTV" [level=3] [ref=e126]
+                        - paragraph [ref=e127]: Physical behavior + camera signals.
+                    - generic [ref=e129]:
+                        - generic [ref=e130]: $50
+                        - generic [ref=e131]: /mo
+                    - generic [ref=e132]:
+                        - heading "INCLUDED LIMITS" [level=4] [ref=e133]
+                        - generic [ref=e134]:
+                            - generic [ref=e135]:
+                                - img [ref=e137]
+                                - generic [ref=e140]: 1M interactions/mo
+                            - generic [ref=e141]:
+                                - img [ref=e143]
+                                - generic [ref=e145]: 1M patterns/mo
+                            - generic [ref=e146]:
+                                - img [ref=e148]
+                                - generic [ref=e151]: Sites & camera groups
+                            - generic [ref=e152]:
+                                - img [ref=e154]
+                                - generic [ref=e157]: Agent ingest
+                            - generic [ref=e158]:
+                                - img [ref=e160]
+                                - generic [ref=e163]: Footfall & queues
+                            - generic [ref=e164]:
+                                - img [ref=e166]
+                                - generic [ref=e169]: Heatmaps
+                - generic [ref=e172] [cursor=pointer]:
+                    - checkbox [ref=e176]
+                    - generic [ref=e177]:
+                        - heading "Social" [level=3] [ref=e178]
+                        - paragraph [ref=e179]: Mentions, sentiment, and trend signals.
+                    - generic [ref=e181]:
+                        - generic [ref=e182]: $50
+                        - generic [ref=e183]: /mo
+                    - generic [ref=e184]:
+                        - heading "INCLUDED LIMITS" [level=4] [ref=e185]
+                        - generic [ref=e186]:
+                            - generic [ref=e187]:
+                                - img [ref=e189]
+                                - generic [ref=e192]: 1M interactions/mo
+                            - generic [ref=e193]:
+                                - img [ref=e195]
+                                - generic [ref=e197]: 1M patterns/mo
+                            - generic [ref=e198]:
+                                - img [ref=e200]
+                                - generic [ref=e203]: Keyword tracking
+                            - generic [ref=e204]:
+                                - img [ref=e206]
+                                - generic [ref=e209]: Sentiment & spikes
+                            - generic [ref=e210]:
+                                - img [ref=e212]
+                                - generic [ref=e215]: Source selection
+                            - generic [ref=e216]:
+                                - img [ref=e218]
+                                - generic [ref=e221]: Regional filters
+            - generic [ref=e223]:
+                - switch "Auto-scale usage" [ref=e224] [cursor=pointer]
+                - generic [ref=e226]:
+                    - generic [ref=e228] [cursor=pointer]: Auto-scale usage
+                    - paragraph [ref=e229]: If you exceed your included usage, extra usage is billed automatically.
+            - generic [ref=e233]:
+                - generic [ref=e234]:
+                    - generic [ref=e235]:
+                        - generic [ref=e236]: COMPONENTS
+                        - generic [ref=e237]: 0/3 Selected
+                    - generic [ref=e239]:
+                        - generic [ref=e240]: TOTAL INCLUDED USAGE
+                        - generic [ref=e241]: 0 interactions, 0 patterns
+                    - generic [ref=e243]:
+                        - generic [ref=e244]: ADD-ONS
+                        - generic [ref=e245]: 0 packs added
+                - generic [ref=e246]:
+                    - generic [ref=e248]:
+                        - generic [ref=e249]: ESTIMATED TOTAL
+                        - generic [ref=e250]:
+                            - generic [ref=e251]: $—
+                            - generic [ref=e252]: /mo
+                    - generic [ref=e254]:
+                        - button "Continue to checkout" [ref=e255]:
+                            - text: Continue to checkout
+                            - img [ref=e256]
+                        - generic [ref=e258]:
+                            - button "Change anytime." [ref=e259]
+                            - button "Talk to sales" [ref=e260]
+        - contentinfo [ref=e262]:
+            - generic [ref=e263]:
+                - link "Each module includes a discount. Compare modules" [ref=e264] [cursor=pointer]:
+                    - /url: /compare-modules
+                - paragraph [ref=e265]: You can add or remove modules later in Settings. .

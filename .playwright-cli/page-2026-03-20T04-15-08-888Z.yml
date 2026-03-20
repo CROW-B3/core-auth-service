@@ -1,0 +1,110 @@
+- generic [ref=e1]:
+    - generic [ref=e2]:
+        - complementary [ref=e3]:
+            - generic [ref=e5]:
+                - img "CROW Logo" [ref=e7]
+                - generic [ref=e8]:
+                    - generic [ref=e9]: CROW
+                    - generic [ref=e10]: CLIENT
+            - navigation [ref=e11]:
+                - link "Overview" [ref=e12] [cursor=pointer]:
+                    - /url: /
+                    - generic [ref=e14]: Overview
+                - link "Catalog" [ref=e15] [cursor=pointer]:
+                    - /url: /catalog
+                    - generic [ref=e17]: Catalog
+                - link "Organization" [ref=e18] [cursor=pointer]:
+                    - /url: /organization
+                    - generic [ref=e20]: Organization
+                - link "Analytics" [ref=e21] [cursor=pointer]:
+                    - /url: /analytics
+                    - generic [ref=e23]: Analytics
+                - link "Chat" [ref=e79] [cursor=pointer]:
+                    - /url: /dashboard/chat
+                    - generic [ref=e81]: Chat
+                - link "Integrations" [ref=e24] [cursor=pointer]:
+                    - /url: /integrations
+                    - generic [ref=e26]: Integrations
+                - link "Billing" [ref=e27] [cursor=pointer]:
+                    - /url: /billing
+                    - generic [ref=e29]: Billing
+                - link "Settings" [ref=e30] [cursor=pointer]:
+                    - /url: /dashboard/settings
+                    - generic [ref=e32]: Settings
+            - generic:
+                - button "Chat History section" [expanded]:
+                    - generic: Chat History
+                    - img
+                - generic:
+                    - generic:
+                        - paragraph: No chats yet. Start a conversation!
+            - generic [ref=e33]:
+                - menu:
+                    - generic:
+                        - generic:
+                            - img
+                        - generic:
+                            - generic: E2E Test User
+                            - generic: e2e-test-crow@crowai.dev
+                    - generic:
+                        - menuitem "Notifications Toggle notifications":
+                            - generic:
+                                - img
+                                - generic: Notifications
+                            - switch "Toggle notifications" [checked]
+                    - generic:
+                        - menuitem "Sign out":
+                            - img
+                            - generic: Sign out
+                - button "Open settings" [ref=e35] [cursor=pointer]:
+                    - img [ref=e37]
+                    - generic [ref=e40]: Settings
+                    - img [ref=e42]
+        - generic [ref=e44]:
+            - banner [ref=e45]:
+                - generic [ref=e46]:
+                    - generic [ref=e47]: Global Retail Ops
+                    - generic [ref=e49]:
+                        - button "Select date range" [active] [ref=e50] [cursor=pointer]:
+                            - img [ref=e51]
+                            - generic [ref=e53]: Last 7 days
+                            - img [ref=e54]
+                        - listbox "Date range options":
+                            - generic: Select time range
+                            - generic:
+                                - option "Today":
+                                    - generic: Today
+                                - option "Yesterday":
+                                    - generic: Yesterday
+                                - option "Last 7 days" [selected]:
+                                    - generic: Last 7 days
+                                    - img
+                                - option "Last 14 days":
+                                    - generic: Last 14 days
+                                - option "Last 30 days":
+                                    - generic: Last 30 days
+                                - option "This month":
+                                    - generic: This month
+                                - option "Last month":
+                                    - generic: Last month
+                                - option "This quarter":
+                                    - generic: This quarter
+                            - generic: Data refreshes every 5 min
+                - generic [ref=e56]:
+                    - button "View notifications (new)" [ref=e57] [cursor=pointer]:
+                        - img [ref=e58]
+                    - button "User menu" [ref=e62] [cursor=pointer]:
+                        - generic [ref=e63]: E2
+            - main [ref=e64]:
+                - generic [ref=e65]:
+                    - generic [ref=e66]:
+                        - generic [ref=e67]:
+                            - heading "Sessions" [level=2] [ref=e68]
+                            - button [ref=e104] [cursor=pointer]:
+                                - img
+                        - paragraph [ref=e70]: No sessions yet
+                    - generic [ref=e72]:
+                        - img [ref=e74]
+                        - heading "Start a conversation" [level=3] [ref=e76]
+                        - paragraph [ref=e77]: Ask about your products, customer interactions, or behavioral patterns.
+    - alert [ref=e78]
