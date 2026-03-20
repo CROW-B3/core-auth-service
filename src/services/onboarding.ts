@@ -129,8 +129,6 @@ export const processCompleteProfileStep = async (
     }),
   };
 
-  // Update the user name/profile in the better-auth user table via the user service.
-  // We PATCH the user record so the JWT definePayload and other services see fresh data.
   const patchResponse = await fetch(
     `${env.USER_SERVICE_URL}/api/v1/users/by-auth-id/${input.betterAuthUserId}`,
     {
@@ -153,11 +151,8 @@ export const processCompleteProfileStep = async (
         body: errorBody,
       }
     );
-    // Non-fatal — profile update failure should not block onboarding progression.
-    // The user can update their profile later.
   }
 
-  // Advance to step 2 (organization).
   return onboardingRepo.updateOnboardingRecord(database, onboardingId, {
     currentStep: 2,
     completedSteps: appendStepToCompletedSteps(
@@ -539,8 +534,6 @@ export const processPlanStep = async (
   });
   const headers = await createSystemHeaders(secret, 'auth-service');
   if (internalGatewayKey) headers['X-Internal-Key'] = internalGatewayKey;
-  // Billing service JWT middleware requires X-System-Token to select the HS256
-  // verification path for service-to-service calls using a system JWT.
   headers['X-System-Token'] = '1';
 
   try {
@@ -559,7 +552,6 @@ export const processPlanStep = async (
     throw error;
   }
 
-  // Advance to step 4 (checkout) after plan/modules is completed.
   return onboardingRepo.updateOnboardingRecord(database, onboardingId, {
     currentStep: 4,
     completedSteps: appendStepToCompletedSteps(
