@@ -129,6 +129,60 @@ app.use('/api/v1/auth/api-key/create', async (c, next) => {
       },
       400
     );
+
+  // Inject metadata.organizationId so the gateway can resolve org context from
+  // API keys. We look up the caller's internal org UUID from the user service
+  // using their betterAuth userId from the active session.
+  try {
+    const auth = createAuth(c.env);
+    const session = await (auth.api as any).getSession({
+      headers: c.req.raw.headers,
+    });
+    const betterAuthUserId = session?.user?.id ?? null;
+
+    if (betterAuthUserId) {
+      const serviceHeaders: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...(c.env.INTERNAL_GATEWAY_KEY && {
+          'X-Internal-Key': c.env.INTERNAL_GATEWAY_KEY,
+        }),
+        ...(c.env.SERVICE_API_KEY_USER && {
+          'X-Service-API-Key': c.env.SERVICE_API_KEY_USER,
+        }),
+      };
+      const userRes = await fetch(
+        `${c.env.USER_SERVICE_URL}/api/v1/users/by-auth-id/${betterAuthUserId}`,
+        { headers: serviceHeaders }
+      );
+      if (userRes.ok) {
+        const userData = (await userRes.json()) as { organizationId?: string };
+        if (userData.organizationId) {
+          const existingMetadata =
+            body?.metadata && typeof body.metadata === 'object'
+              ? (body.metadata as Record<string, unknown>)
+              : {};
+          const patchedBody = {
+            ...body,
+            metadata: {
+              ...existingMetadata,
+              organizationId: userData.organizationId,
+            },
+          };
+          const patchedRequest = new Request(c.req.raw.url, {
+            method: c.req.raw.method,
+            headers: c.req.raw.headers,
+            body: JSON.stringify(patchedBody),
+          });
+          c.req.raw = patchedRequest;
+        }
+      }
+    }
+  } catch (err) {
+    // Non-fatal: log but allow the request through; the key will be created
+    // without metadata.organizationId and the gateway will reject API key auth.
+    console.error('[api-key/create] failed to inject organizationId:', err);
+  }
+
   return next();
 });
 
