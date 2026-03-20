@@ -649,6 +649,25 @@ export const processCheckoutStep = async (
   });
 };
 
+export const skipSourcesStep = async (
+  database: Database,
+  onboardingId: string
+) => {
+  const onboarding = await onboardingRepo.findOnboardingById(
+    database,
+    onboardingId
+  );
+  if (!onboarding) throw new Error('Onboarding not found');
+
+  return onboardingRepo.updateOnboardingRecord(database, onboardingId, {
+    currentStep: 5,
+    completedSteps: appendStepToCompletedSteps(
+      onboarding.completedSteps,
+      'sources'
+    ),
+  });
+};
+
 export const processTeamStep = async (
   database: Database,
   onboardingId: string
