@@ -14,13 +14,19 @@ import {
   getUserIdByEmail,
 } from '../services/invitation-service';
 
+const AMPERSAND_REGEX = /&/g;
+const LESS_THAN_REGEX = /</g;
+const GREATER_THAN_REGEX = />/g;
+const DOUBLE_QUOTE_REGEX = /"/g;
+const SINGLE_QUOTE_REGEX = /'/g;
+
 const escapeHtml = (str: string): string =>
   str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;');
+    .replace(AMPERSAND_REGEX, '&amp;')
+    .replace(LESS_THAN_REGEX, '&lt;')
+    .replace(GREATER_THAN_REGEX, '&gt;')
+    .replace(DOUBLE_QUOTE_REGEX, '&quot;')
+    .replace(SINGLE_QUOTE_REGEX, '&#x27;');
 
 const INVITATION_SCHEMA = z.object({
   emails: z.array(z.string().email()),
@@ -322,8 +328,6 @@ teamInvitationRoutes.post('/send-invites', async context => {
     );
   }
 
-  // Verify the caller is a member/owner of the organization they're inviting to.
-  // The inviterId in the body must match an active member row in the org.
   const database = drizzle(context.env.DB, { schema });
   const membership = await database
     .select({ id: schema.member.id, role: schema.member.role })
@@ -346,7 +350,6 @@ teamInvitationRoutes.post('/send-invites', async context => {
     );
   }
 
-  // Only owners and admins can send invitations
   if (membership.role !== 'owner' && membership.role !== 'admin') {
     return context.json(
       {
@@ -396,7 +399,6 @@ teamInvitationRoutes.get('/list-invitations', async context => {
     );
   }
 
-  // Require caller identity — fail closed if absent
   if (!callerId) {
     return context.json(
       { error: 'Unauthorized', message: 'Authentication required' },
@@ -406,7 +408,6 @@ teamInvitationRoutes.get('/list-invitations', async context => {
 
   const database = drizzle(context.env.DB, { schema });
 
-  // Verify caller is a member of the org before listing its invitations
   const callerMembership = await database
     .select({ id: schema.member.id })
     .from(schema.member)
@@ -454,7 +455,6 @@ teamInvitationRoutes.delete('/invitations/:invitationId', async context => {
 
   const database = drizzle(context.env.DB, { schema });
 
-  // Fetch the invitation to verify it exists and get the organizationId
   const invitation = await database
     .select({
       id: schema.invitation.id,
@@ -471,7 +471,6 @@ teamInvitationRoutes.delete('/invitations/:invitationId', async context => {
     );
   }
 
-  // Only owners and admins may revoke invitations
   const callerMembership = await database
     .select({ id: schema.member.id, role: schema.member.role })
     .from(schema.member)

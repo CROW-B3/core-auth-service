@@ -99,7 +99,6 @@ app.openapi(ReadinessCheckRoute, async c => {
   );
 });
 
-// Rate limiting on auth write endpoints
 app.use('/api/v1/auth/sign-in/*', authRateLimiter());
 app.use('/api/v1/auth/sign-up/*', authRateLimiter());
 app.use('/api/v1/auth/api-key/verify', authRateLimiter());
@@ -130,9 +129,6 @@ app.use('/api/v1/auth/api-key/create', async (c, next) => {
       400
     );
 
-  // Inject metadata.organizationId so the gateway can resolve org context from
-  // API keys. We look up the caller's internal org UUID from the user service
-  // using their betterAuth userId from the active session.
   try {
     const auth = createAuth(c.env);
     const session = await (auth.api as any).getSession({
@@ -178,8 +174,6 @@ app.use('/api/v1/auth/api-key/create', async (c, next) => {
       }
     }
   } catch (err) {
-    // Non-fatal: log but allow the request through; the key will be created
-    // without metadata.organizationId and the gateway will reject API key auth.
     console.error('[api-key/create] failed to inject organizationId:', err);
   }
 
@@ -200,7 +194,6 @@ app.use('/api/v1/auth/sign-up/*', async (c, next) => {
     body = null;
   }
 
-  // Block consumer email domains
   const emailDomain = (body?.email as string | undefined)
     ?.split('@')[1]
     ?.toLowerCase();
@@ -232,7 +225,6 @@ app.use('/api/v1/auth/sign-up/*', async (c, next) => {
     );
   }
 
-  // Validate email length (RFC 5321: max 254 chars total)
   const emailResult = z.string().email().max(254).safeParse(body?.email);
   if (!emailResult.success) {
     return c.json(
@@ -331,7 +323,6 @@ app.use('/api/v1/auth/*', async (c, next) => {
 
       const response = await createAuth(c.env).handler(request);
 
-      // Post-process organization/create to sync org and member to internal services
       if (path.includes('/organization/create') && response.status === 200) {
         try {
           const cloned = response.clone();
@@ -386,14 +377,14 @@ app.use('/api/v1/auth/*', async (c, next) => {
 });
 
 app.post('/api/v1/auth/api-key/verify', async c => {
-  // This endpoint is internal-only — requires service API key
   const internalKey = c.req.header('X-Internal-Key');
   if (
     c.env.INTERNAL_GATEWAY_KEY &&
     internalKey === c.env.INTERNAL_GATEWAY_KEY
   ) {
-    // Gateway-forwarded request — trusted
-  } else {
+    return await next();
+  }
+  {
     const serviceKey = c.req.header('X-Service-API-Key');
     const knownServiceKeys = new Set(
       [
