@@ -1,0 +1,5 @@
+{
+  "modules": { "web": true, "cctv": false, "social": false },
+  "payAsYouGo": false,
+  "billingPeriod": "annual"
+}
