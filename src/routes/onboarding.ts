@@ -318,7 +318,7 @@ onboardingRoutes.post('/:id/complete', handleCompleteOnboarding);
 
 const createCheckoutSchema = z.object({
   billingBuilderId: z.string(),
-  organizationId: z.string(),
+  organizationId: z.string().optional(),
   organizationName: z.string().optional(),
   successUrl: z.string(),
   cancelUrl: z.string(),
@@ -356,7 +356,7 @@ const createCheckoutSession = async (
 const handleCreateCheckout = async (context: Context) => {
   const body = (await context.req.json()) as {
     billingBuilderId: string;
-    organizationId: string;
+    organizationId?: string;
     organizationName?: string;
     successUrl: string;
     cancelUrl: string;
@@ -368,7 +368,9 @@ const handleCreateCheckout = async (context: Context) => {
   if (context.env.INTERNAL_GATEWAY_KEY)
     headers['X-Internal-Key'] = context.env.INTERNAL_GATEWAY_KEY;
   headers['X-System-Token'] = '1';
-  headers['X-Organization-Id'] = body.organizationId;
+  if (body.organizationId) {
+    headers['X-Organization-Id'] = body.organizationId;
+  }
   const { organizationId: _orgId, ...checkoutBody } = body;
   const checkoutData = await createCheckoutSession(
     context.env.BILLING_SERVICE_URL,
