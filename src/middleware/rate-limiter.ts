@@ -8,8 +8,6 @@ interface RateLimitEntry {
   resetAt: number;
 }
 
-// Store is created lazily inside the handler to avoid global-scope I/O
-// (Cloudflare Workers error 10021).
 let authStore: Map<string, RateLimitEntry> | null = null;
 
 const getStore = (): Map<string, RateLimitEntry> => {

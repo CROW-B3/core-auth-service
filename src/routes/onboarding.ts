@@ -367,11 +367,7 @@ const handleCreateCheckout = async (context: Context) => {
   );
   if (context.env.INTERNAL_GATEWAY_KEY)
     headers['X-Internal-Key'] = context.env.INTERNAL_GATEWAY_KEY;
-  // Billing service JWT middleware requires X-System-Token to use the
-  // HS256 verification path for system-to-service calls.
   headers['X-System-Token'] = '1';
-  // The checkout session endpoint always requires X-Organization-Id regardless
-  // of system context — pass the internal organization UUID here.
   headers['X-Organization-Id'] = body.organizationId;
   const { organizationId: _orgId, ...checkoutBody } = body;
   const checkoutData = await createCheckoutSession(
