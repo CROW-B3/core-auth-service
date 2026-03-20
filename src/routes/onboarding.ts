@@ -290,6 +290,19 @@ onboardingRoutes.patch(
   handleSourceStep
 );
 
+const handleSkipSourcesStep = async (context: Context) => {
+  const database = drizzle(context.env.DB, { schema });
+  const onboardingId = context.req.param('id');
+
+  const onboarding = await onboardingService.skipSourcesStep(
+    database,
+    onboardingId
+  );
+  return context.json({ onboarding });
+};
+
+onboardingRoutes.patch('/:id/step/sources/skip', handleSkipSourcesStep);
+
 const handleTeamStep = async (context: Context) => {
   const database = drizzle(context.env.DB, { schema });
   const onboardingId = context.req.param('id');
