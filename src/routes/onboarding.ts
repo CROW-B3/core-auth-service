@@ -144,6 +144,10 @@ const handleOrganizationStep = async (context: Context) => {
       USER_SERVICE_URL: context.env.USER_SERVICE_URL,
       ORGANIZATION_SERVICE_URL: context.env.ORGANIZATION_SERVICE_URL,
       BILLING_SERVICE_URL: context.env.BILLING_SERVICE_URL,
+      INTERNAL_GATEWAY_KEY: context.env.INTERNAL_GATEWAY_KEY,
+      SERVICE_API_KEY_ORGANIZATION: context.env.SERVICE_API_KEY_ORGANIZATION,
+      SERVICE_API_KEY_USER: context.env.SERVICE_API_KEY_USER,
+      SERVICE_API_KEY_BILLING: context.env.SERVICE_API_KEY_BILLING,
     }
   );
 
@@ -170,7 +174,8 @@ const handlePlanStep = async (context: Context) => {
     onboardingId,
     body,
     context.env.BILLING_SERVICE_URL,
-    context.env.BETTER_AUTH_SECRET
+    context.env.BETTER_AUTH_SECRET,
+    context.env.INTERNAL_GATEWAY_KEY
   );
 
   return context.json({ onboarding });
@@ -313,6 +318,8 @@ const handleCreateCheckout = async (context: Context) => {
     context.env.BETTER_AUTH_SECRET,
     'auth-service'
   );
+  if (context.env.INTERNAL_GATEWAY_KEY)
+    headers['X-Internal-Key'] = context.env.INTERNAL_GATEWAY_KEY;
   const checkoutData = await createCheckoutSession(
     context.env.BILLING_SERVICE_URL,
     headers,
