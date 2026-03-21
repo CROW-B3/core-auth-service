@@ -2,7 +2,7 @@ import type { Environment } from '../types';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { anonymous, apiKey, jwt, organization } from 'better-auth/plugins';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import { sendOrganizationInviteEmail } from '../clients/notification';
 import * as schema from '../db/schema';
@@ -149,6 +149,74 @@ export const createAuth = (env: Environment) => {
     ],
 
     databaseHooks: {
+      user: {
+        create: {
+          after: async (user: any) => {
+            // Skip anonymous users
+            if (user.isAnonymous) return;
+            try {
+              const now = new Date();
+              const pendingInvitations = await db
+                .select()
+                .from(schema.invitation)
+                .where(
+                  and(
+                    eq(schema.invitation.email, user.email),
+                    eq(schema.invitation.status, 'pending')
+                  )
+                );
+
+              for (const invite of pendingInvitations) {
+                // Skip expired invitations
+                if (invite.expiresAt < now) continue;
+
+                // Check not already a member
+                const existing = await db
+                  .select({ id: schema.member.id })
+                  .from(schema.member)
+                  .where(
+                    and(
+                      eq(schema.member.userId, user.id),
+                      eq(schema.member.organizationId, invite.organizationId)
+                    )
+                  )
+                  .limit(1);
+
+                if (existing.length > 0) continue;
+
+                // Add as member — triggers member.create.after to sync to user service
+                await db.insert(schema.member).values({
+                  id: crypto.randomUUID(),
+                  organizationId: invite.organizationId,
+                  userId: user.id,
+                  role: invite.role as 'member' | 'admin',
+                  createdAt: now,
+                });
+
+                // Mark invitation accepted
+                await db
+                  .update(schema.invitation)
+                  .set({ status: 'accepted' })
+                  .where(eq(schema.invitation.id, invite.id));
+
+                console.warn(
+                  '[databaseHooks] user.create: auto-accepted pending invitation',
+                  {
+                    userId: user.id,
+                    email: user.email,
+                    organizationId: invite.organizationId,
+                  }
+                );
+              }
+            } catch (err) {
+              console.error(
+                '[databaseHooks] user.create: error checking pending invitations',
+                err
+              );
+            }
+          },
+        },
+      },
       organization: {
         create: {
           after: async (organization: any) => {
