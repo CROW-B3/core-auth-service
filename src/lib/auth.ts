@@ -39,6 +39,20 @@ export const createAuth = (env: Environment) => {
 
     emailAndPassword: {
       enabled: true,
+      sendResetPassword: async ({ user, url }) => {
+        void fetch(
+          `${env.NOTIFICATION_SERVICE_URL}/api/v1/notifications/email`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: user.email,
+              subject: 'Reset your CROW password',
+              html: `<p>Hi ${user.name || 'there'},</p><p>We received a request to reset your password. Click the link below to set a new password:</p><p><a href="${url}" style="display:inline-block;padding:12px 24px;background-color:#7c3aed;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;">Reset Password</a></p><p>This link expires in 1 hour. If you didn't request this, you can safely ignore this email.</p><p>— The CROW Team</p>`,
+            }),
+          }
+        );
+      },
       ...(env.ENVIRONMENT === 'prod'
         ? {
             rateLimit: {
