@@ -378,13 +378,9 @@ app.use('/api/v1/auth/*', async (c, next) => {
 
 app.post('/api/v1/auth/api-key/verify', async c => {
   const internalKey = c.req.header('X-Internal-Key');
-  if (
-    c.env.INTERNAL_GATEWAY_KEY &&
-    internalKey === c.env.INTERNAL_GATEWAY_KEY
-  ) {
-    return await next();
-  }
-  {
+  const isInternalRequest =
+    c.env.INTERNAL_GATEWAY_KEY && internalKey === c.env.INTERNAL_GATEWAY_KEY;
+  if (!isInternalRequest) {
     const serviceKey = c.req.header('X-Service-API-Key');
     const knownServiceKeys = new Set(
       [
