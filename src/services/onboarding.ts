@@ -277,7 +277,7 @@ const ensureUserExistsInService = async (
   env: { USER_SERVICE_URL: string; SERVICE_API_KEY_USER?: string },
   systemHeaders: Record<string, string>,
   authUser: { id: string; email: string; name: string },
-  organization: { id: string },
+  organization: { id: string; betterAuthOrgId?: string },
   onboardingId: string
 ) => {
   const userHeaders: Record<string, string> = {
@@ -296,7 +296,7 @@ const ensureUserExistsInService = async (
     env.USER_SERVICE_URL,
     userHeaders,
     authUser,
-    organization.id,
+    organization.betterAuthOrgId ?? organization.id,
     onboardingId
   );
 };
@@ -347,7 +347,7 @@ const createBillingBuilderForOrganization = async (
     );
   }
 
-  return billingResponse.json();
+  return billingResponse.json() as Promise<{ id: string }>;
 };
 
 const finalizeOrganizationStep = async (
@@ -355,14 +355,23 @@ const finalizeOrganizationStep = async (
   onboardingId: string,
   updates: {
     betterAuthOrgId: string;
-    billingBuilderId: string;
+    billingBuilderId: string | null;
   }
 ) => {
+  const onboarding = await onboardingRepo.findOnboardingById(
+    database,
+    onboardingId
+  );
   return onboardingRepo.updateOnboardingRecord(database, onboardingId, {
     currentStep: 2,
-    completedSteps: ['organization'],
+    completedSteps: appendStepToCompletedSteps(
+      onboarding?.completedSteps ?? null,
+      'organization'
+    ),
     betterAuthOrgId: updates.betterAuthOrgId,
-    billingBuilderId: updates.billingBuilderId,
+    ...(updates.billingBuilderId !== null && {
+      billingBuilderId: updates.billingBuilderId,
+    }),
   });
 };
 
@@ -439,26 +448,29 @@ export const processOrganizationStep = async (
     throw error;
   }
 
-  let billingBuilder: any;
+  let billingBuilderId: string | null = null;
   try {
-    billingBuilder = await createBillingBuilderForOrganization(
+    const billingBuilder = await createBillingBuilderForOrganization(
       env,
       systemHeaders,
       organization,
       onboardingId
     );
+    billingBuilderId = (billingBuilder as { id?: string })?.id ?? null;
     console.warn('[onboarding:org] Billing builder created:', billingBuilder);
   } catch (error) {
+    // Billing setup is non-critical for the organization step. Log the error
+    // and continue so users are not blocked from completing onboarding when
+    // the billing service is unavailable or not yet configured.
     console.error(
-      '[onboarding:org] Failed to create billing builder:',
+      '[onboarding:org] Failed to create billing builder (non-fatal, continuing):',
       error instanceof Error ? error.message : error
     );
-    throw error;
   }
 
   return finalizeOrganizationStep(database, onboardingId, {
     betterAuthOrgId: input.betterAuthOrgId,
-    billingBuilderId: billingBuilder.id,
+    billingBuilderId,
   });
 };
 
@@ -645,6 +657,25 @@ export const processCheckoutStep = async (
     completedSteps: appendStepToCompletedSteps(
       onboarding.completedSteps,
       'checkout'
+    ),
+  });
+};
+
+export const skipProductsStep = async (
+  database: Database,
+  onboardingId: string
+) => {
+  const onboarding = await onboardingRepo.findOnboardingById(
+    database,
+    onboardingId
+  );
+  if (!onboarding) throw new Error('Onboarding not found');
+
+  return onboardingRepo.updateOnboardingRecord(database, onboardingId, {
+    currentStep: 4,
+    completedSteps: appendStepToCompletedSteps(
+      onboarding.completedSteps,
+      'products'
     ),
   });
 };
