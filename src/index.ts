@@ -286,7 +286,7 @@ app.use('/api/v1/auth/*', async (c, next) => {
     '/verify-email',
     '/reset-password',
     '/change-password',
-    '/forgot-password',
+    '/request-password-reset',
     '/update-user',
     '/link-social',
     '/list-sessions',

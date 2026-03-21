@@ -8,13 +8,17 @@ interface OrganizationInviteEmailData {
 
 export const sendOrganizationInviteEmail = async (
   notificationServiceUrl: string,
-  data: OrganizationInviteEmailData
+  data: OrganizationInviteEmailData,
+  internalGatewayKey?: string
 ): Promise<void> => {
   const response = await fetch(
     `${notificationServiceUrl}/api/v1/notifications/email`,
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(internalGatewayKey && { 'X-Internal-Key': internalGatewayKey }),
+      },
       body: JSON.stringify({
         to: data.to,
         subject: `You've been invited to join ${data.organizationName}`,
