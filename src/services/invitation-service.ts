@@ -1,5 +1,5 @@
 import type { DrizzleD1Database } from 'drizzle-orm/d1';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, gt } from 'drizzle-orm';
 import * as schema from '../db/schema';
 
 export type Database = DrizzleD1Database<typeof schema>;
@@ -40,6 +40,7 @@ export const checkPendingInvitation = async (
   email: string,
   organizationId: string
 ): Promise<boolean> => {
+  const now = new Date();
   const pendingInvitation = await database
     .select()
     .from(schema.invitation)
@@ -47,7 +48,8 @@ export const checkPendingInvitation = async (
       and(
         eq(schema.invitation.email, email),
         eq(schema.invitation.organizationId, organizationId),
-        eq(schema.invitation.status, 'pending')
+        eq(schema.invitation.status, 'pending'),
+        gt(schema.invitation.expiresAt, now)
       )
     )
     .limit(1);
@@ -84,6 +86,21 @@ export const addMemberToOrganization = async (
   organizationId: string,
   userId: string
 ): Promise<void> => {
+  const existing = await database
+    .select({ id: schema.member.id })
+    .from(schema.member)
+    .where(
+      and(
+        eq(schema.member.organizationId, organizationId),
+        eq(schema.member.userId, userId)
+      )
+    )
+    .limit(1);
+
+  if (existing.length > 0) {
+    return;
+  }
+
   const memberId = crypto.randomUUID();
   const now = new Date();
 
