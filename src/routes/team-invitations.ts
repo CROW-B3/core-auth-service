@@ -58,6 +58,12 @@ const parseInvitationRequest = async (
   context: any
 ): Promise<InvitationRequest> => {
   const rawBody = await context.req.json();
+  // Fall back to gateway-injected header if client omitted inviterId
+  if (!rawBody.inviterId) {
+    const headerInviterId =
+      context.req.header('X-User-Id') ?? context.req.header('X-Caller-Id');
+    if (headerInviterId) rawBody.inviterId = headerInviterId;
+  }
   return INVITATION_SCHEMA.parse(rawBody);
 };
 
