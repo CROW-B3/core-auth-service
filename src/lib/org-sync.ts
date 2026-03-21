@@ -92,6 +92,13 @@ export async function syncOrgAndMember(
       );
       return;
     }
+    if (existingUserRes.status !== 404) {
+      console.error(
+        '[org-sync] user-service check failed, skipping create to avoid duplicate:',
+        existingUserRes.status
+      );
+      return;
+    }
 
     const role =
       memberRole === 'owner' ? 'member' : (memberRole as 'admin' | 'member');
