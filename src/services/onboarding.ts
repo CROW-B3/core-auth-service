@@ -277,7 +277,7 @@ const ensureUserExistsInService = async (
   env: { USER_SERVICE_URL: string; SERVICE_API_KEY_USER?: string },
   systemHeaders: Record<string, string>,
   authUser: { id: string; email: string; name: string },
-  organization: { id: string },
+  organization: { id: string; betterAuthOrgId?: string },
   onboardingId: string
 ) => {
   const userHeaders: Record<string, string> = {
@@ -296,7 +296,7 @@ const ensureUserExistsInService = async (
     env.USER_SERVICE_URL,
     userHeaders,
     authUser,
-    organization.id,
+    organization.betterAuthOrgId ?? organization.id,
     onboardingId
   );
 };
