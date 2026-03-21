@@ -40,11 +40,16 @@ export const createAuth = (env: Environment) => {
     emailAndPassword: {
       enabled: true,
       sendResetPassword: async ({ user, url }) => {
-        void fetch(
+        await fetch(
           `${env.NOTIFICATION_SERVICE_URL}/api/v1/notifications/email`,
           {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              ...(env.INTERNAL_GATEWAY_KEY && {
+                'X-Internal-Key': env.INTERNAL_GATEWAY_KEY,
+              }),
+            },
             body: JSON.stringify({
               to: user.email,
               subject: 'Reset your CROW password',
@@ -141,13 +146,17 @@ export const createAuth = (env: Environment) => {
       organization({
         allowUserToCreateOrganization: true,
         sendInvitationEmail: async data => {
-          await sendOrganizationInviteEmail(env.NOTIFICATION_SERVICE_URL, {
-            to: data.email,
-            inviteLink: `${env.AUTH_CLIENT_URL}/accept-invite/${data.id}`,
-            organizationName: data.organization.name,
-            inviterName: (data.inviter as any).name,
-            role: data.role,
-          });
+          await sendOrganizationInviteEmail(
+            env.NOTIFICATION_SERVICE_URL,
+            {
+              to: data.email,
+              inviteLink: `${env.AUTH_CLIENT_URL}/accept-invite/${data.id}`,
+              organizationName: data.organization.name,
+              inviterName: (data.inviter as any).name,
+              role: data.role,
+            },
+            env.INTERNAL_GATEWAY_KEY
+          );
         },
       }),
       apiKey({
