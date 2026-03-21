@@ -303,6 +303,19 @@ const handleSkipSourcesStep = async (context: Context) => {
 
 onboardingRoutes.patch('/:id/step/sources/skip', handleSkipSourcesStep);
 
+const handleSkipProductsStep = async (context: Context) => {
+  const database = drizzle(context.env.DB, { schema });
+  const onboardingId = context.req.param('id');
+
+  const onboarding = await onboardingService.skipProductsStep(
+    database,
+    onboardingId
+  );
+  return context.json({ onboarding });
+};
+
+onboardingRoutes.patch('/:id/step/products/skip', handleSkipProductsStep);
+
 const handleTeamStep = async (context: Context) => {
   const database = drizzle(context.env.DB, { schema });
   const onboardingId = context.req.param('id');
