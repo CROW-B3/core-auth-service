@@ -105,7 +105,7 @@ onboardingRoutes.post(
 
 const handleGetOnboardingById = async (context: Context) => {
   const database = drizzle(context.env.DB, { schema });
-  const onboardingId = context.req.param('id');
+  const onboardingId = context.req.param('id')!;
 
   const onboarding = await onboardingService.getOnboardingStatus(
     database,
@@ -118,7 +118,7 @@ const handleGetOnboardingById = async (context: Context) => {
 
 const handleGetOnboardingByUserId = async (context: Context) => {
   const database = drizzle(context.env.DB, { schema });
-  const userId = context.req.param('userId');
+  const userId = context.req.param('userId')!;
 
   const onboarding = await onboardingService.getOnboardingByUserId(
     database,
@@ -135,7 +135,7 @@ onboardingRoutes.get('/:id', handleGetOnboardingById);
 
 const handleCompleteProfileStep = async (context: Context) => {
   const database = drizzle(context.env.DB, { schema });
-  const onboardingId = context.req.param('id');
+  const onboardingId = context.req.param('id')!;
   const body = (await context.req.json()) as {
     name: string;
     phone?: string;
@@ -166,7 +166,7 @@ onboardingRoutes.patch(
 
 const handleOrganizationStep = async (context: Context) => {
   const database = drizzle(context.env.DB, { schema });
-  const onboardingId = context.req.param('id');
+  const onboardingId = context.req.param('id')!;
   const body = (await context.req.json()) as {
     betterAuthOrgId: string;
     organizationName: string;
@@ -200,7 +200,7 @@ onboardingRoutes.patch(
 
 const handlePlanStep = async (context: Context) => {
   const database = drizzle(context.env.DB, { schema });
-  const onboardingId = context.req.param('id');
+  const onboardingId = context.req.param('id')!;
   const body = (await context.req.json()) as {
     modules: { web: boolean; cctv: boolean; social: boolean };
     payAsYouGo: boolean;
@@ -227,7 +227,7 @@ onboardingRoutes.patch(
 
 const handleCheckoutStep = async (context: Context) => {
   const database = drizzle(context.env.DB, { schema });
-  const onboardingId = context.req.param('id');
+  const onboardingId = context.req.param('id')!;
   const body = (await context.req.json()) as { stripeSessionId: string };
 
   const onboarding = await onboardingService.processCheckoutStep(
@@ -247,7 +247,7 @@ onboardingRoutes.patch(
 
 const handleProductsStep = async (context: Context) => {
   const database = drizzle(context.env.DB, { schema });
-  const onboardingId = context.req.param('id');
+  const onboardingId = context.req.param('id')!;
   const body = (await context.req.json()) as {
     sourceType: 'csv' | 'json' | 'url';
     sourceValue: string;
@@ -270,7 +270,7 @@ onboardingRoutes.patch(
 
 const handleSourceStep = async (context: Context) => {
   const database = drizzle(context.env.DB, { schema });
-  const onboardingId = context.req.param('id');
+  const onboardingId = context.req.param('id')!;
   const body = (await context.req.json()) as {
     sourceType: 'web' | 'cctv' | 'social';
     apiKeyId: string;
@@ -292,7 +292,7 @@ onboardingRoutes.patch(
 
 const handleSkipSourcesStep = async (context: Context) => {
   const database = drizzle(context.env.DB, { schema });
-  const onboardingId = context.req.param('id');
+  const onboardingId = context.req.param('id')!;
 
   const onboarding = await onboardingService.skipSourcesStep(
     database,
@@ -305,7 +305,7 @@ onboardingRoutes.patch('/:id/step/sources/skip', handleSkipSourcesStep);
 
 const handleSkipProductsStep = async (context: Context) => {
   const database = drizzle(context.env.DB, { schema });
-  const onboardingId = context.req.param('id');
+  const onboardingId = context.req.param('id')!;
 
   const onboarding = await onboardingService.skipProductsStep(
     database,
@@ -318,7 +318,7 @@ onboardingRoutes.patch('/:id/step/products/skip', handleSkipProductsStep);
 
 const handleTeamStep = async (context: Context) => {
   const database = drizzle(context.env.DB, { schema });
-  const onboardingId = context.req.param('id');
+  const onboardingId = context.req.param('id')!;
 
   const onboarding = await onboardingService.processTeamStep(
     database,
@@ -331,7 +331,7 @@ onboardingRoutes.patch('/:id/step/team', handleTeamStep);
 
 const handleCompleteOnboarding = async (context: Context) => {
   const database = drizzle(context.env.DB, { schema });
-  const onboardingId = context.req.param('id');
+  const onboardingId = context.req.param('id')!;
 
   const onboarding = await onboardingService.completeOnboarding(
     database,
