@@ -347,7 +347,7 @@ const createBillingBuilderForOrganization = async (
     );
   }
 
-  return billingResponse.json();
+  return billingResponse.json() as Promise<{ id: string }>;
 };
 
 const finalizeOrganizationStep = async (
