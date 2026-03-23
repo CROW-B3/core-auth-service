@@ -176,7 +176,27 @@ describe('core-auth-service', () => {
   });
 
   describe('sign-up validation', () => {
-    it('should reject consumer email domains', async () => {
+    it('should reject consumer email domains in prod', async () => {
+      const prodEnv = { ...mockEnv, ENVIRONMENT: 'prod' };
+      const res = await app.request(
+        '/api/v1/auth/sign-up/email',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: 'user@gmail.com',
+            password: 'testpass123',
+            name: 'Test User',
+          }),
+        },
+        prodEnv
+      );
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error.code).toBe('DOMAIN_NOT_ALLOWED');
+    });
+
+    it('should allow consumer email domains in non-prod environments', async () => {
       const res = await app.request(
         '/api/v1/auth/sign-up/email',
         {
@@ -190,9 +210,8 @@ describe('core-auth-service', () => {
         },
         mockEnv
       );
-      expect(res.status).toBe(400);
-      const body = await res.json();
-      expect(body.error.code).toBe('DOMAIN_NOT_ALLOWED');
+      // Should pass validation and reach better-auth handler (200)
+      expect(res.status).toBe(200);
     });
 
     it('should reject empty name', async () => {
