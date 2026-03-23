@@ -17,7 +17,9 @@
     "format": "bun run prettier src/ --write",
     "bun:dev": "bun run --watch src/index.ts",
     "bun:start": "bun run src/index.ts",
-    "bun:build": "bun build src/index.ts --compile --outfile server"
+    "bun:build": "bun build src/index.ts --compile --outfile server",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@antfu/eslint-config": "^7.4.3",
@@ -42,6 +44,7 @@
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
     "prettier": "^3.8.1",
+    "vitest": "^4.1.0",
     "wrangler": "^4.65.0"
   },
   "lint-staged": {
