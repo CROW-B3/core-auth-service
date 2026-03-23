@@ -1,5 +1,5 @@
-import pino from 'pino';
 import type { Environment } from '../types';
+import pino from 'pino';
 
 const createProductionTransport = () => ({
   target: 'pino/file',
@@ -28,7 +28,9 @@ function getTransport(env: Environment): pino.TransportSingleOptions {
   const environment = env.ENVIRONMENT || 'prod';
   const isDevelopment = environment === 'local' || environment === 'dev';
 
-  return isDevelopment ? createDevelopmentTransport() : createProductionTransport();
+  return isDevelopment
+    ? createDevelopmentTransport()
+    : createProductionTransport();
 }
 
 export function createLogger(env: Environment): pino.Logger {
@@ -36,7 +38,7 @@ export function createLogger(env: Environment): pino.Logger {
     level: getLogLevel(env),
     transport: getTransport(env),
     formatters: {
-      level: (label) => ({ level: label }),
+      level: label => ({ level: label }),
     },
     timestamp: pino.stdTimeFunctions.isoTime,
   });
