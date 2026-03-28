@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "crow-core-auth-service",
+  "name": "crow-core-auth-service-dev",
   "placement": { "mode": "smart" },
   "account_id": "8f0203259905d8923687286c84921e6c",
   "main": "src/index.ts",
