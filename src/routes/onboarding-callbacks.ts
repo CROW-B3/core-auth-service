@@ -6,7 +6,6 @@ import * as onboardingService from '../services/onboarding';
 
 const callbackRoutes = new Hono<{ Bindings: Environment }>();
 
-// All callbacks are internal-only: require the gateway internal key
 callbackRoutes.use('*', async (c, next) => {
   if (!c.env.INTERNAL_GATEWAY_KEY) {
     return c.json({ error: 'Service unavailable' }, 503);

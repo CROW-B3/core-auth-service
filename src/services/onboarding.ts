@@ -313,7 +313,6 @@ const createBillingBuilderForOrganization = async (
 ) => {
   const billingHeaders: Record<string, string> = {
     ...systemHeaders,
-    // Billing service requires X-Internal-Key + X-System-Token for HS256 JWT path
     ...(env.INTERNAL_GATEWAY_KEY && {
       'X-Internal-Key': env.INTERNAL_GATEWAY_KEY,
     }),
@@ -395,8 +394,6 @@ export const processOrganizationStep = async (
     'auth-service'
   );
 
-  // All downstream microservices require X-Internal-Key for service-to-service
-  // authentication. Without this the calls return 401, causing a 500 here.
   if (env.INTERNAL_GATEWAY_KEY) {
     systemHeaders['X-Internal-Key'] = env.INTERNAL_GATEWAY_KEY;
   }
@@ -459,9 +456,6 @@ export const processOrganizationStep = async (
     billingBuilderId = (billingBuilder as { id?: string })?.id ?? null;
     console.warn('[onboarding:org] Billing builder created:', billingBuilder);
   } catch (error) {
-    // Billing setup is non-critical for the organization step. Log the error
-    // and continue so users are not blocked from completing onboarding when
-    // the billing service is unavailable or not yet configured.
     console.error(
       '[onboarding:org] Failed to create billing builder (non-fatal, continuing):',
       error instanceof Error ? error.message : error

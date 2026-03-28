@@ -58,7 +58,6 @@ const parseInvitationRequest = async (
   context: any
 ): Promise<InvitationRequest> => {
   const rawBody = await context.req.json();
-  // Fall back to gateway-injected header if client omitted inviterId
   if (!rawBody.inviterId) {
     const headerInviterId =
       context.req.header('X-User-Id') ?? context.req.header('X-Caller-Id');
@@ -318,11 +317,11 @@ const processAllEmails = async (
   return { results, errors };
 };
 
-teamInvitationRoutes.post('/send-invites', async context => {
-  let invitationData: InvitationRequest;
-
+const parseSendInvitesBody = async (
+  context: any
+): Promise<InvitationRequest | Response> => {
   try {
-    invitationData = await parseInvitationRequest(context);
+    return await parseInvitationRequest(context);
   } catch (error) {
     console.error('[TEAM-INVITATIONS] Validation error:', error);
     return context.json(
@@ -333,19 +332,29 @@ teamInvitationRoutes.post('/send-invites', async context => {
       400
     );
   }
+};
 
-  const database = drizzle(context.env.DB, { schema });
-  const membership = await database
+const verifyInviterMembership = async (
+  database: any,
+  inviterId: string,
+  organizationId: string
+): Promise<{ id: string; role: string } | undefined> => {
+  return database
     .select({ id: schema.member.id, role: schema.member.role })
     .from(schema.member)
     .where(
       and(
-        eq(schema.member.userId, invitationData.inviterId),
-        eq(schema.member.organizationId, invitationData.organizationId)
+        eq(schema.member.userId, inviterId),
+        eq(schema.member.organizationId, organizationId)
       )
     )
     .get();
+};
 
+const checkInviterPermissions = (
+  context: any,
+  membership: { id: string; role: string } | undefined
+): Response | null => {
   if (!membership) {
     return context.json(
       {
@@ -365,6 +374,24 @@ teamInvitationRoutes.post('/send-invites', async context => {
       403
     );
   }
+
+  return null;
+};
+
+teamInvitationRoutes.post('/send-invites', async context => {
+  const parsed = await parseSendInvitesBody(context);
+  if (parsed instanceof Response) return parsed;
+
+  const invitationData = parsed;
+  const database = drizzle(context.env.DB, { schema });
+
+  const membership = await verifyInviterMembership(
+    database,
+    invitationData.inviterId,
+    invitationData.organizationId
+  );
+  const permissionError = checkInviterPermissions(context, membership);
+  if (permissionError) return permissionError;
 
   const notificationServiceUrl = context.env.NOTIFICATION_SERVICE_URL;
   const userServiceUrl = context.env.USER_SERVICE_URL;
@@ -393,10 +420,46 @@ teamInvitationRoutes.post('/send-invites', async context => {
   });
 });
 
+const extractCallerId = (context: any): string =>
+  context.req.header('X-User-Id') ?? context.req.header('X-Caller-Id') ?? '';
+
+const verifyCallerMembership = async (
+  database: any,
+  callerId: string,
+  organizationId: string
+): Promise<{ id: string } | undefined> => {
+  return database
+    .select({ id: schema.member.id })
+    .from(schema.member)
+    .where(
+      and(
+        eq(schema.member.userId, callerId),
+        eq(schema.member.organizationId, organizationId)
+      )
+    )
+    .get();
+};
+
+const fetchInvitationsForOrg = async (
+  database: any,
+  organizationId: string
+) => {
+  return database
+    .select({
+      id: schema.invitation.id,
+      email: schema.invitation.email,
+      role: schema.invitation.role,
+      status: schema.invitation.status,
+      expiresAt: schema.invitation.expiresAt,
+      createdAt: schema.invitation.createdAt,
+    })
+    .from(schema.invitation)
+    .where(eq(schema.invitation.organizationId, organizationId));
+};
+
 teamInvitationRoutes.get('/list-invitations', async context => {
   const organizationId = context.req.query('organizationId');
-  const callerId =
-    context.req.header('X-User-Id') ?? context.req.header('X-Caller-Id') ?? '';
+  const callerId = extractCallerId(context);
 
   if (!organizationId) {
     return context.json(
@@ -413,17 +476,11 @@ teamInvitationRoutes.get('/list-invitations', async context => {
   }
 
   const database = drizzle(context.env.DB, { schema });
-
-  const callerMembership = await database
-    .select({ id: schema.member.id })
-    .from(schema.member)
-    .where(
-      and(
-        eq(schema.member.userId, callerId),
-        eq(schema.member.organizationId, organizationId)
-      )
-    )
-    .get();
+  const callerMembership = await verifyCallerMembership(
+    database,
+    callerId,
+    organizationId
+  );
 
   if (!callerMembership) {
     return context.json(
@@ -432,36 +489,15 @@ teamInvitationRoutes.get('/list-invitations', async context => {
     );
   }
 
-  const invitations = await database
-    .select({
-      id: schema.invitation.id,
-      email: schema.invitation.email,
-      role: schema.invitation.role,
-      status: schema.invitation.status,
-      expiresAt: schema.invitation.expiresAt,
-      createdAt: schema.invitation.createdAt,
-    })
-    .from(schema.invitation)
-    .where(eq(schema.invitation.organizationId, organizationId));
-
+  const invitations = await fetchInvitationsForOrg(database, organizationId);
   return context.json({ invitations });
 });
 
-teamInvitationRoutes.delete('/invitations/:invitationId', async context => {
-  const invitationId = context.req.param('invitationId');
-  const callerId =
-    context.req.header('X-User-Id') ?? context.req.header('X-Caller-Id') ?? '';
-
-  if (!callerId) {
-    return context.json(
-      { error: 'Unauthorized', message: 'Authentication required' },
-      401
-    );
-  }
-
-  const database = drizzle(context.env.DB, { schema });
-
-  const invitation = await database
+const findInvitationById = async (
+  database: any,
+  invitationId: string
+): Promise<{ id: string; organizationId: string } | undefined> => {
+  return database
     .select({
       id: schema.invitation.id,
       organizationId: schema.invitation.organizationId,
@@ -469,25 +505,29 @@ teamInvitationRoutes.delete('/invitations/:invitationId', async context => {
     .from(schema.invitation)
     .where(eq(schema.invitation.id, invitationId))
     .get();
+};
 
-  if (!invitation) {
-    return context.json(
-      { error: 'Not Found', message: 'Invitation not found' },
-      404
-    );
-  }
-
-  const callerMembership = await database
+const verifyCallerAdminRole = async (
+  database: any,
+  callerId: string,
+  organizationId: string
+): Promise<{ id: string; role: string } | undefined> => {
+  return database
     .select({ id: schema.member.id, role: schema.member.role })
     .from(schema.member)
     .where(
       and(
         eq(schema.member.userId, callerId),
-        eq(schema.member.organizationId, invitation.organizationId)
+        eq(schema.member.organizationId, organizationId)
       )
     )
     .get();
+};
 
+const checkCallerDeletePermissions = (
+  context: any,
+  callerMembership: { id: string; role: string } | undefined
+): Response | null => {
   if (!callerMembership) {
     return context.json(
       { error: 'Forbidden', message: 'Access denied to this organization' },
@@ -501,6 +541,41 @@ teamInvitationRoutes.delete('/invitations/:invitationId', async context => {
       403
     );
   }
+
+  return null;
+};
+
+teamInvitationRoutes.delete('/invitations/:invitationId', async context => {
+  const invitationId = context.req.param('invitationId');
+  const callerId = extractCallerId(context);
+
+  if (!callerId) {
+    return context.json(
+      { error: 'Unauthorized', message: 'Authentication required' },
+      401
+    );
+  }
+
+  const database = drizzle(context.env.DB, { schema });
+  const invitation = await findInvitationById(database, invitationId);
+
+  if (!invitation) {
+    return context.json(
+      { error: 'Not Found', message: 'Invitation not found' },
+      404
+    );
+  }
+
+  const callerMembership = await verifyCallerAdminRole(
+    database,
+    callerId,
+    invitation.organizationId
+  );
+  const permissionError = checkCallerDeletePermissions(
+    context,
+    callerMembership
+  );
+  if (permissionError) return permissionError;
 
   await database
     .update(schema.invitation)
