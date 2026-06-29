@@ -43,7 +43,7 @@
     "better-sqlite3": "^12.6.2",
     "drizzle-kit": "^0.31.9",
     "husky": "^9.1.7",
-    "lint-staged": "^16.2.7",
+    "lint-staged": "^17.0.8",
     "prettier": "^3.8.1",
     "vitest": "^4.1.0",
     "wrangler": "^4.65.0"
